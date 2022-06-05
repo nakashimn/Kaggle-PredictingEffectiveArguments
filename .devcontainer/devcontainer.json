@@ -24,7 +24,9 @@
 		"ms-python.vscode-pylance",
 		"donjayamanne.githistory",
 		"eamodio.gitlens",
-		"ryuta46.multi-command"
+		"ryuta46.multi-command",
+		"yzhang.markdown-all-in-one",
+		"shd101wyy.markdown-preview-enhanced"
 	]
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
