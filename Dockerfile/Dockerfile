@@ -13,3 +13,5 @@ RUN apt-get update \
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113 \
     && rm /tmp/requirements.txt
+
+RUN git config --global --add /workspace
