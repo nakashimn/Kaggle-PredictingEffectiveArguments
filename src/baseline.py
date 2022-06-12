@@ -482,7 +482,7 @@ if __name__=="__main__":
 
     mlflow_logger = create_mlflow_logger(config)
 
-    df_train = pd.read_csv(config["path"]["traindata"]).iloc[:128]
+    df_train = pd.read_csv(config["path"]["traindata"])
     df_test = pd.read_csv(config["path"]["testdata"])
 
     text_cleaner = TextCleaner()
