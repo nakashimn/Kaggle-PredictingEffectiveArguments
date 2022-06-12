@@ -1,0 +1,4 @@
+[core]
+    remote = predictingeffectivearguments
+['remote "predictingeffectivearguments"']
+    url = /data_storage/
