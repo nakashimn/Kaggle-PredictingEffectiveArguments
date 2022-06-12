@@ -18,3 +18,4 @@ transformers
 timm
 mlflow
 black
+dvc

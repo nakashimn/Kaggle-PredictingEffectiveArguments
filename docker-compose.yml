@@ -14,6 +14,7 @@ services:
     volumes:
       - ./:/workspace:cached
       - ./kaggle:/kaggle:cached
+      - ${DATASTORAGE_PATH}:/data_storage:cached
     environment:
       TZ: Asia/Tokyo
       KAGGLE_USERNAME: ${KAGGLE_USERNAME}
