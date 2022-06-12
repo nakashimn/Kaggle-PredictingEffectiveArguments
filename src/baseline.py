@@ -23,8 +23,8 @@ from transformers import AutoTokenizer, AutoModel
 
 config = {
     "mode": "train",
-    "epoch": 1,
-    "n_splits": 2,
+    "epoch": 100,
+    "n_splits": 5,
     "random_seed": 57,
     "label": "discourse_effectiveness",
     "experiment_name": "roberta-v0",
@@ -101,7 +101,7 @@ config["datamodule"] = {
         "batch_size": 64,
         "shuffle": False,
         "num_workers": 4,
-        "pin_memory": False,
+        "pin_memory": True,
         "drop_last": False
     },
     "test_loader": {
