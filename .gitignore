@@ -2,6 +2,7 @@
 tmp
 
 .kaggle
+.env
 
 data/*
 kaggle/input/*
