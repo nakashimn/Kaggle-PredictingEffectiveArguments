@@ -500,6 +500,3 @@ if __name__=="__main__":
         mlflow_logger
     )
     trainer.run()
-
-    print(trainer.val_probs)
-    print(trainer.val_labels)
