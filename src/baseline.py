@@ -6,6 +6,8 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from scipy.special import softmax
+import nltk
+from nltk.corpus import stopwords
 import torch
 import torch.optim as optim
 from torch import nn
@@ -122,6 +124,55 @@ transforms = {
         T.ToTensor()
     ])
 }
+
+
+class TextCleaner:
+    def __init__(self):
+        nltk.download('stopwords')
+        self.stop = stopwords.words('english')
+        self.lemmatizer = nltk.stem.WordNetLemmatizer()
+
+    def lemmatize_text(self, text):
+        return [self.lemmatizer.lemmatize(w) for w in text]
+
+    def clean(self, data, col):
+        # Replace Upper to Lower
+        data[col] = data[col].str.lower()
+        # Replace
+        data[col] = data[col].str.replace(r"what's", "what is ")
+        data[col] = data[col].str.replace(r"\'ve", " have ")
+        data[col] = data[col].str.replace(r"can't", "cannot ")
+        data[col] = data[col].str.replace(r"n't", " not ")
+        data[col] = data[col].str.replace(r"i'm", "i am ")
+        data[col] = data[col].str.replace(r"\'re", " are ")
+        data[col] = data[col].str.replace(r"\'d", " would ")
+        data[col] = data[col].str.replace(r"\'ll", " will ")
+        data[col] = data[col].str.replace(r"\'scuse", " excuse ")
+        data[col] = data[col].str.replace(r"\'s", " ")
+        # Remove
+        data[col] = data[col].str.replace(r'\s', ' ')
+        data[col] = data[col].str.replace('.', ' ')
+        data[col] = data[col].str.replace(',', ' ')
+        data[col] = data[col].str.replace('\"', ' ')
+        data[col] = data[col].str.replace('(', ' ')
+        data[col] = data[col].str.replace(')', ' ')
+        data[col] = data[col].str.replace(':', ' ')
+        data[col] = data[col].str.replace(';', ' ')
+        # Clean some punctutations
+        data[col] = data[col].str.replace(r'([a-zA-Z]+)([/!?.])([a-zA-Z]+)',r'\1 \2 \3')
+        # Replace repeating characters more than 3 times to length of 3
+        data[col] = data[col].str.replace(r'([*!?\'])\1\1{2,}',r'\1\1\1')
+        # Add space around repeating characters
+        data[col] = data[col].str.replace(r'([*!?\']+)',r' \1 ')
+        # patterns with repeating characters
+        data[col] = data[col].str.replace(r'([a-zA-Z])\1{2,}\b',r'\1\1')
+        data[col] = data[col].str.replace(r'([a-zA-Z])\1\1{2,}\B',r'\1\1\1')
+        data[col] = data[col].str.replace(r'[ ]{2,}',' ').str.strip()
+        data[col] = data[col].str.replace(r'[ ]{2,}',' ').str.strip()
+        data[col] = data[col].str.replace(r' +', ' ')
+        # data[col] = data[col].apply(lambda x: ' '.join([word for word in x.split() if word not in (self.stop)]))
+        return data
+
 
 class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
@@ -433,6 +484,10 @@ if __name__=="__main__":
 
     df_train = pd.read_csv(config["path"]["traindata"]).iloc[:128]
     df_test = pd.read_csv(config["path"]["testdata"])
+
+    text_cleaner = TextCleaner()
+    df_train = text_cleaner.clean(df_train, "discourse_text")
+    df_test = text_cleaner.clean(df_test, "discourse_text")
 
     trainer = Trainer(
         PeModel,
