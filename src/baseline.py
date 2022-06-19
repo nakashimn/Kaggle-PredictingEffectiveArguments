@@ -20,6 +20,9 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
 from sklearn.model_selection import StratifiedKFold
 from transformers import AutoTokenizer, AutoModel
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, accuracy_score, f1_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 config = {
     "mode": "train",
@@ -111,6 +114,9 @@ config["datamodule"] = {
         "pin_memory": False,
         "drop_last": False
     }
+}
+config["Metrics"] = {
+    "label": list(config["datamodule"]["dataset"]["discourse_effectiveness"].keys())
 }
 
 transforms = {
@@ -379,9 +385,9 @@ class Trainer:
             # create datamodule
             datamodule = self._create_datamodule(idx_train, idx_val)
 
-            # train
-            min_loss = self._train_with_crossvalid(datamodule, fold)
-            self.min_loss.update(min_loss)
+            # # train
+            # min_loss = self._train_with_crossvalid(datamodule, fold)
+            # self.min_loss.update(min_loss)
 
             # valid
             val_probs, val_labels = self._valid(datamodule, fold)
@@ -482,6 +488,28 @@ class Trainer:
         val_labels = model.val_labels
         return val_probs, val_labels
 
+class ConfusionMatrix:
+    def __init__(self, probs, labels, config):
+        # const
+        self.config = config
+        self.probs = probs
+        self.labels = labels
+
+        # variables
+        self.fig = plt.figure(figsize=[4, 4], tight_layout=True)
+
+    def draw(self):
+        idx_probs = np.argmax(self.probs, axis=1)
+        idx_labels = np.argmax(self.labels, axis=1)
+
+        df_confmat = pd.DataFrame(
+            confusion_matrix(idx_probs, idx_labels),
+            index=self.config["label"],
+            columns=self.config["label"]
+        )
+        axis = self.fig.add_subplot(1, 1, 1)
+        sns.heatmap(df_confmat, ax=axis, cmap="bwr", square=True, annot=True)
+        return self.fig
 
 def create_mlflow_logger(config):
     if not (config["mode"]=="train"):
@@ -500,13 +528,14 @@ if __name__=="__main__":
 
     mlflow_logger = create_mlflow_logger(config)
 
+    # Setting Dataset
     df_train = pd.read_csv(config["path"]["traindata"])
     df_test = pd.read_csv(config["path"]["testdata"])
-
     text_cleaner = TextCleaner()
     df_train = text_cleaner.clean(df_train, "discourse_text")
     df_test = text_cleaner.clean(df_test, "discourse_text")
 
+    # Training
     trainer = Trainer(
         PeModel,
         PeDataModule,
@@ -520,3 +549,11 @@ if __name__=="__main__":
         mlflow_logger
     )
     trainer.run()
+
+    # Validation Result
+    conf_mat = ConfusionMatrix(
+        trainer.val_probs.val,
+        trainer.val_labels.val,
+        config["Metrics"]
+    )
+    conf_mat.draw()
