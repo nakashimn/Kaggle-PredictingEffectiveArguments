@@ -511,6 +511,29 @@ class ConfusionMatrix:
         sns.heatmap(df_confmat, ax=axis, cmap="bwr", square=True, annot=True)
         return self.fig
 
+class F1Score:
+    def __init__(self, probs, labels, config):
+        # const
+        self.config = config
+        self.probs = probs
+        self.labels = labels
+
+        # variables
+        self.f1_scores = {
+            "macro": None,
+            "micro": None
+        }
+
+    def calc(self):
+        idx_probs = np.argmax(self.probs, axis=1)
+        idx_labels = np.argmax(self.labels, axis=1)
+        self.f1_scores = {
+            "macro": f1_score(idx_probs, idx_labels, average="macro"),
+            "micro": f1_score(idx_probs, idx_labels, average="micro")
+        }
+        return self.f1_scores
+
+
 def create_mlflow_logger(config):
     if not (config["mode"]=="train"):
         return None
@@ -551,9 +574,16 @@ if __name__=="__main__":
     trainer.run()
 
     # Validation Result
-    conf_mat = ConfusionMatrix(
+    confmat = ConfusionMatrix(
         trainer.val_probs.val,
         trainer.val_labels.val,
         config["Metrics"]
     )
-    conf_mat.draw()
+    fig_confmat = confmat.draw()
+
+    f1_scores = F1Score(
+        trainer.val_probs.val,
+        trainer.val_labels.val,
+        config["Metrics"]
+    )
+    f1_scores.calc()
