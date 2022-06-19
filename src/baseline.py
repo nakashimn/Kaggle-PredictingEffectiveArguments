@@ -580,10 +580,19 @@ if __name__=="__main__":
         config["Metrics"]
     )
     fig_confmat = confmat.draw()
+    fig_confmat.savefig(f"{config['path']['temporal_dir']}/confmat.png")
+    mlflow_logger.experiment.log_artifact(
+        mlflow_logger.run_id,
+        f"{config['path']['temporal_dir']}/confmat.png"
+    )
 
     f1_scores = F1Score(
         trainer.val_probs.val,
         trainer.val_labels.val,
         config["Metrics"]
     )
-    f1_scores.calc()
+    f1_scores = f1_scores.calc()
+    mlflow_logger.log_metrics({
+        "macro_f1_score": f1_scores["macro"],
+        "micro_f1_score": f1_scores["micro"]
+    })
