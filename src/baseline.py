@@ -331,8 +331,26 @@ class PeModel(LightningModule):
         )
         return [optimizer], [scheduler]
 
+class MinLoss:
+    def __init__(self):
+        self.min_loss = np.nan
+
+    def update(self, min_loss):
+        self.min_loss = np.nanmin([self.min_loss, min_loss])
+
+class ValidResult:
+    def __init__(self):
+        self.val = None
+
+    def append(self, val):
+        if self.val is None:
+            self.val = val
+            return self.val
+        self.val = np.concatenate([self.val, val])
+        return self.val
+
 class Trainer:
-    def __init__(self, Model, DataModule, Dataset, Tokenizer, df_train, config, transforms, mlflow_logger):
+    def __init__(self, Model, DataModule, Dataset, Tokenizer, ValidResult, MinLoss, df_train, config, transforms, mlflow_logger):
         # const
         self.mlflow_logger = mlflow_logger
         self.config = config
@@ -343,34 +361,32 @@ class Trainer:
             shuffle=True,
             random_state=self.config["random_seed"])
 
-        # variable
-        self.min_loss = np.nan
-        self.val_probs = []
-        self.val_labels = []
-
         # Class
         self.Model = Model
         self.DataModule = DataModule
         self.Dataset = Dataset
         self.Tokenizer = Tokenizer
+        self.MinLoss = MinLoss
+        self.ValidResult = ValidResult
+
+        # variable
+        self.min_loss = self.MinLoss()
+        self.val_probs = self.ValidResult()
+        self.val_labels = self.ValidResult()
 
     def run(self):
-        list_val_probs = []
-        list_val_labels = []
         for fold, (idx_train, idx_val) in enumerate(self.skf.split(self.df_train, self.df_train[self.config["label"]])):
             # create datamodule
             datamodule = self._create_datamodule(idx_train, idx_val)
 
             # train
             min_loss = self._train_with_crossvalid(datamodule, fold)
-            self.min_loss = np.nanmin([self.min_loss, min_loss])
+            self.min_loss.update(min_loss)
 
             # valid
             val_probs, val_labels = self._valid(datamodule, fold)
-            list_val_probs.append(val_probs)
-            list_val_labels.append(val_labels)
-        self.val_probs = np.concatenate(list_val_probs)
-        self.val_labels =np.concatenate(list_val_labels)
+            self.val_probs.append(val_probs)
+            self.val_labels.append(val_labels)
 
     def _create_datamodule(self, idx_train, idx_val):
         df_train_fold = self.df_train.loc[idx_train].reset_index(drop=True)
@@ -496,6 +512,8 @@ if __name__=="__main__":
         PeDataModule,
         PeDataset,
         AutoTokenizer,
+        ValidResult,
+        MinLoss,
         df_train,
         config,
         transforms,
