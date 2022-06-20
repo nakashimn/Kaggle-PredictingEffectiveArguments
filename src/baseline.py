@@ -339,21 +339,21 @@ class PeModel(LightningModule):
 
 class MinLoss:
     def __init__(self):
-        self.min_loss = np.nan
+        self.value = np.nan
 
     def update(self, min_loss):
-        self.min_loss = np.nanmin([self.min_loss, min_loss])
+        self.value = np.nanmin([self.value, min_loss])
 
 class ValidResult:
     def __init__(self):
-        self.val = None
+        self.values = None
 
-    def append(self, val):
-        if self.val is None:
-            self.val = val
-            return self.val
-        self.val = np.concatenate([self.val, val])
-        return self.val
+    def append(self, values):
+        if self.values is None:
+            self.values = values
+            return self.values
+        self.values = np.concatenate([self.values, values])
+        return self.values
 
 class Trainer:
     def __init__(self, Model, DataModule, Dataset, Tokenizer, ValidResult, MinLoss, df_train, config, transforms, mlflow_logger):
@@ -385,14 +385,22 @@ class Trainer:
             # create datamodule
             datamodule = self._create_datamodule(idx_train, idx_val)
 
-            # # train
-            # min_loss = self._train_with_crossvalid(datamodule, fold)
-            # self.min_loss.update(min_loss)
+            # train crossvalid models
+            min_loss = self._train_with_crossvalid(datamodule, fold)
+            self.min_loss.update(min_loss)
 
             # valid
             val_probs, val_labels = self._valid(datamodule, fold)
             self.val_probs.append(val_probs)
             self.val_labels.append(val_labels)
+
+        # log
+        self.mlflow_logger.log_metric("train_min_loss", self.min_loss.value)
+
+        # train final model
+        datamodule = self._create_datamodule_with_alldata()
+        self._train_without_valid(datamodule, self.min_loss.value)
+
 
     def _create_datamodule(self, idx_train, idx_val):
         df_train_fold = self.df_train.loc[idx_train].reset_index(drop=True)
@@ -400,6 +408,19 @@ class Trainer:
         datamodule = self.DataModule(
             df_train=df_train_fold,
             df_val=df_val_fold,
+            df_pred=None,
+            Dataset=self.Dataset,
+            Tokenizer=self.Tokenizer,
+            config=self.config["datamodule"],
+            transforms=self.transforms
+        )
+        return datamodule
+
+    def _create_datamodule_with_alldata(self):
+        df_val_dummy = self.df_train.iloc[:10]
+        datamodule = self.DataModule(
+            df_train=self.df_train,
+            df_val=df_val_dummy,
             df_pred=None,
             Dataset=self.Dataset,
             Tokenizer=self.Tokenizer,
@@ -575,8 +596,8 @@ if __name__=="__main__":
 
     # Validation Result
     confmat = ConfusionMatrix(
-        trainer.val_probs.val,
-        trainer.val_labels.val,
+        trainer.val_probs.values,
+        trainer.val_labels.values,
         config["Metrics"]
     )
     fig_confmat = confmat.draw()
@@ -587,8 +608,8 @@ if __name__=="__main__":
     )
 
     f1_scores = F1Score(
-        trainer.val_probs.val,
-        trainer.val_labels.val,
+        trainer.val_probs.values,
+        trainer.val_labels.values,
         config["Metrics"]
     )
     f1_scores = f1_scores.calc()
