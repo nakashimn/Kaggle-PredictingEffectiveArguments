@@ -34,8 +34,10 @@ config = {
     "path": {
         "traindata": "/kaggle/input/feedback-prize-effectiveness/train.csv",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
-        "temporal_dir": "../tmp/artifacts/"
-    }
+        "temporal_dir": "../tmp/artifacts/",
+        "model_dir": "/kaggle/input/model/pe-roberta-v0/"
+    },
+    "modelname": "bast_loss"
 }
 config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
@@ -509,6 +511,75 @@ class Trainer:
         val_labels = model.val_labels
         return val_probs, val_labels
 
+class Predictor:
+    def __init__(self, Model, DataModule, Dataset, Tokenizer, df_test, config, transforms):
+        # const
+        self.config = config
+        self.df_test = df_test
+        self.transforms = transforms
+        self.skf = StratifiedKFold(
+            self.config["n_splits"],
+            shuffle=True,
+            random_state=self.config["random_seed"])
+
+        # Class
+        self.Model = Model
+        self.DataModule = DataModule
+        self.Dataset = Dataset
+        self.Tokenizer = Tokenizer
+
+        # variables
+        self.probs = None
+
+    def run(self):
+        # create datamodule
+        datamodule = self._create_datamodule()
+
+        # predict
+        self.probs = self._predict(datamodule)
+
+        return self.probs
+
+
+    def _create_datamodule(self):
+        datamodule = self.DataModule(
+            df_train=None,
+            df_val=None,
+            df_pred=self.df_test,
+            Dataset=self.Dataset,
+            Tokenizer=self.Tokenizer,
+            config=self.config["datamodule"],
+            transforms=self.transforms
+        )
+        return datamodule
+
+    def _predict(self):
+        # define datamodule
+        datamodule = self.DataModule(
+            df_pred=self.df_test,
+            config=self.config,
+            transforms=self.transforms["dataset"]
+        )
+
+        # define trainer
+        trainer = pl.Trainer(
+            logger=None,
+            **self.config["trainer"]
+        )
+
+        # load model
+        model = self.Model.load_from_checkpoint(
+            f"{self.config['path']['model_dir']}/{self.config['modelname']}.ckpt",
+            config=self.config["model"],
+            transforms=self.transforms["pred"]
+        )
+
+        # prediction
+        with torch.inference_mode():
+            preds = trainer.predict(model, datamodule=datamodule)
+        probs = np.concatenate([p["prob"].numpy() for p in preds], axis=0)
+        return probs
+
 class ConfusionMatrix:
     def __init__(self, probs, labels, config):
         # const
@@ -570,50 +641,70 @@ def create_mlflow_logger(config):
 
 if __name__=="__main__":
 
-    mlflow_logger = create_mlflow_logger(config)
-
-    # Setting Dataset
-    df_train = pd.read_csv(config["path"]["traindata"])
-    df_test = pd.read_csv(config["path"]["testdata"])
+    # preprocessor
     text_cleaner = TextCleaner()
-    df_train = text_cleaner.clean(df_train, "discourse_text")
-    df_test = text_cleaner.clean(df_test, "discourse_text")
 
-    # Training
-    trainer = Trainer(
-        PeModel,
-        PeDataModule,
-        PeDataset,
-        AutoTokenizer,
-        ValidResult,
-        MinLoss,
-        df_train,
-        config,
-        transforms,
-        mlflow_logger
-    )
-    trainer.run()
+    if config["mode"]=="train":
 
-    # Validation Result
-    confmat = ConfusionMatrix(
-        trainer.val_probs.values,
-        trainer.val_labels.values,
-        config["Metrics"]
-    )
-    fig_confmat = confmat.draw()
-    fig_confmat.savefig(f"{config['path']['temporal_dir']}/confmat.png")
-    mlflow_logger.experiment.log_artifact(
-        mlflow_logger.run_id,
-        f"{config['path']['temporal_dir']}/confmat.png"
-    )
+        # logger
+        mlflow_logger = create_mlflow_logger(config)
 
-    f1_scores = F1Score(
-        trainer.val_probs.values,
-        trainer.val_labels.values,
-        config["Metrics"]
-    )
-    f1_scores = f1_scores.calc()
-    mlflow_logger.log_metrics({
-        "macro_f1_score": f1_scores["macro"],
-        "micro_f1_score": f1_scores["micro"]
-    })
+        # Setting Dataset
+        df_train = pd.read_csv(config["path"]["traindata"])
+        df_train = text_cleaner.clean(df_train, "discourse_text")
+
+        # Training
+        trainer = Trainer(
+            PeModel,
+            PeDataModule,
+            PeDataset,
+            AutoTokenizer,
+            ValidResult,
+            MinLoss,
+            df_train,
+            config,
+            transforms,
+            mlflow_logger
+        )
+        trainer.run()
+
+        # Validation Result
+        confmat = ConfusionMatrix(
+            trainer.val_probs.values,
+            trainer.val_labels.values,
+            config["Metrics"]
+        )
+        fig_confmat = confmat.draw()
+        fig_confmat.savefig(f"{config['path']['temporal_dir']}/confmat.png")
+        mlflow_logger.experiment.log_artifact(
+            mlflow_logger.run_id,
+            f"{config['path']['temporal_dir']}/confmat.png"
+        )
+
+        f1_scores = F1Score(
+            trainer.val_probs.values,
+            trainer.val_labels.values,
+            config["Metrics"]
+        )
+        f1_scores = f1_scores.calc()
+        mlflow_logger.log_metrics({
+            "macro_f1_score": f1_scores["macro"],
+            "micro_f1_score": f1_scores["micro"]
+        })
+
+    if config["mode"]=="test":
+
+        # Setting Dataset
+        df_test = pd.read_csv(config["path"]["testdata"])
+        df_test = text_cleaner.clean(df_test, "discourse_text")
+
+        # Prediction
+        predictor = Predictor(
+            PeModel,
+            PeDataModule,
+            PeDataset,
+            AutoTokenizer,
+            df_test,
+            config,
+            transforms
+        )
