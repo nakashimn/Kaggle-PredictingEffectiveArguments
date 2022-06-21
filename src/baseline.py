@@ -56,7 +56,7 @@ config["model"] = {
     }
 }
 config["earlystopping"] = {
-    'patience': 5
+    'patience': 10
 }
 config["checkpoint"] = {
     "dirpath": "../tmp/artifacts/",
