@@ -397,7 +397,7 @@ class Trainer:
             self.val_labels.append(val_labels)
 
         # log
-        self.mlflow_logger.log_metric("train_min_loss", self.min_loss.value)
+        self.mlflow_logger.log_metrics({"train_min_loss": self.min_loss.value})
 
         # train final model
         datamodule = self._create_datamodule_with_alldata()
@@ -637,7 +637,6 @@ def create_mlflow_logger(config):
         run_name=timestamp
     )
     return mlflow_logger
-
 
 if __name__=="__main__":
 
