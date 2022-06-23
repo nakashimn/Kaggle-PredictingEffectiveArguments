@@ -1,15 +1,11 @@
 import os
 import sys
-import glob
 import datetime
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from scipy.special import softmax
 import nltk
 from nltk.corpus import stopwords
 import torch
-import torch.optim as optim
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
@@ -20,12 +16,12 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
 from sklearn.model_selection import StratifiedKFold
 from transformers import AutoTokenizer, AutoModel
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, accuracy_score, f1_score
+from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 config = {
-    "mode": "train",
+    "mode": "test",
     "epoch": 100,
     "n_splits": 3,
     "random_seed": 57,
@@ -37,7 +33,7 @@ config = {
         "temporal_dir": "../tmp/artifacts/",
         "model_dir": "/kaggle/input/model/pe-roberta-v0/"
     },
-    "modelname": "bast_loss"
+    "modelname": "best_loss"
 }
 config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
@@ -109,7 +105,7 @@ config["datamodule"] = {
         "pin_memory": True,
         "drop_last": False
     },
-    "test_loader": {
+    "pred_loader": {
         "batch_size": 64,
         "shuffle": False,
         "num_workers": 4,
@@ -186,7 +182,7 @@ class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
         self.val = df["discourse_text"].values
-        self.label = None
+        self.labels = None
         if "discourse_effectiveness" in df.keys():
             self.labels = F.one_hot(
                 torch.tensor(
@@ -553,14 +549,7 @@ class Predictor:
         )
         return datamodule
 
-    def _predict(self):
-        # define datamodule
-        datamodule = self.DataModule(
-            df_pred=self.df_test,
-            config=self.config,
-            transforms=self.transforms["dataset"]
-        )
-
+    def _predict(self, datamodule):
         # define trainer
         trainer = pl.Trainer(
             logger=None,
@@ -707,3 +696,10 @@ if __name__=="__main__":
             config,
             transforms
         )
+        predictor.run()
+
+        submission = pd.concat([
+            df_test["discourse_id"],
+            pd.DataFrame(predictor.probs, columns=config["datamodule"]["dataset"]["discourse_effectiveness"])
+        ], axis=1)
+        submission.to_csv("submission.csv", index=None)
