@@ -6,7 +6,7 @@ import pandas as pd
 import nltk
 from nltk.corpus import stopwords
 import torch
-from torch import nn
+from torch import nn, optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 config = {
-    "mode": "test",
+    "mode": "train",
     "epoch": 100,
     "n_splits": 3,
     "random_seed": 57,
@@ -75,7 +75,7 @@ config["datamodule"] = {
     "dataset":{
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
-        "max_length": 128,
+        "max_length": 512,
         "discourse_type": {
             "Claim": 0,
             "Concluding Statement": 1,
@@ -92,21 +92,21 @@ config["datamodule"] = {
         },
     },
     "train_loader": {
-        "batch_size": 64,
-        "shuffle": True,
+        "batch_size": 8,
+        "shuffle": False,
         "num_workers": 4,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
-        "batch_size": 64,
+        "batch_size": 8,
         "shuffle": False,
         "num_workers": 4,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
-        "batch_size": 64,
+        "batch_size": 8,
         "shuffle": False,
         "num_workers": 4,
         "pin_memory": False,
@@ -651,7 +651,7 @@ if __name__=="__main__":
             MinLoss,
             df_train,
             config,
-            transforms,
+            None,
             mlflow_logger
         )
         trainer.run()
@@ -694,7 +694,7 @@ if __name__=="__main__":
             AutoTokenizer,
             df_test,
             config,
-            transforms
+            None
         )
         predictor.run()
 
