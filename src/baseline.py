@@ -92,21 +92,21 @@ config["datamodule"] = {
         },
     },
     "train_loader": {
-        "batch_size": 8,
-        "shuffle": False,
+        "batch_size": 64,
+        "shuffle": True,
         "num_workers": 4,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
-        "batch_size": 8,
+        "batch_size": 64,
         "shuffle": False,
         "num_workers": 4,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
-        "batch_size": 8,
+        "batch_size": 64,
         "shuffle": False,
         "num_workers": 4,
         "pin_memory": False,
