@@ -86,9 +86,9 @@ config["datamodule"] = {
             "Rebuttal": 6
         },
         "discourse_effectiveness": {
-            "Adequate": 0,
-            "Effective": 1,
-            "Ineffective": 2
+            "Ineffective": 0,
+            "Adequate": 1,
+            "Effective": 2
         },
     },
     "train_loader": {
@@ -595,6 +595,8 @@ class ConfusionMatrix:
         )
         axis = self.fig.add_subplot(1, 1, 1)
         sns.heatmap(df_confmat, ax=axis, cmap="bwr", square=True, annot=True)
+        axis.set_xlabel("label")
+        axis.set_ylabel("pred")
         return self.fig
 
 class F1Score:
