@@ -236,22 +236,27 @@ class PeDataModule(LightningDataModule):
         self.df_train = df_train
         self.df_val = df_val
         self.df_pred = df_pred
-        self.transforms = transforms
+        self.transforms = self.read_transforms(transforms)
 
         # class
         self.Dataset = Dataset
         self.Tokenizer = Tokenizer
 
+    def read_transforms(self, transforms):
+        if transforms is not None:
+            return transforms
+        return {"train": None, "valid": None, "pred": None}
+
     def train_dataloader(self):
-        dataset = self.Dataset(self.df_train, self.config["dataset"], self.Tokenizer)
+        dataset = self.Dataset(self.df_train, self.config["dataset"], self.Tokenizer, self.transforms["train"])
         return DataLoader(dataset, **self.config["train_loader"])
 
     def val_dataloader(self):
-        dataset = self.Dataset(self.df_val, self.config["dataset"], self.Tokenizer)
+        dataset = self.Dataset(self.df_val, self.config["dataset"], self.Tokenizer, self.transforms["valid"])
         return DataLoader(dataset, **self.config["val_loader"])
 
     def predict_dataloader(self):
-        dataset = self.Dataset(self.df_pred, self.config["dataset"], self.Tokenizer)
+        dataset = self.Dataset(self.df_pred, self.config["dataset"], self.Tokenizer, self.transforms["pred"])
         return DataLoader(dataset, **self.config["pred_loader"])
 
 
@@ -560,7 +565,7 @@ class Predictor:
         model = self.Model.load_from_checkpoint(
             f"{self.config['path']['model_dir']}/{self.config['modelname']}.ckpt",
             config=self.config["model"],
-            transforms=self.transforms["pred"]
+            transforms=self.transforms
         )
 
         # prediction
