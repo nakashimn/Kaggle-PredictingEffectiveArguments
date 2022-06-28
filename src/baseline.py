@@ -75,7 +75,7 @@ config["datamodule"] = {
     "dataset":{
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
-        "max_length": 512,
+        "max_length": 128,
         "discourse_type": {
             "Claim": 0,
             "Concluding Statement": 1,
