@@ -57,7 +57,7 @@ config["earlystopping"] = {
     'patience': 10
 }
 config["checkpoint"] = {
-    "dirpath": "../tmp/artifacts/",
+    "dirpath": config["path"]["temporal_dir"],
     "monitor": "val_loss",
     "save_top_k": 1,
     "mode": "min",
@@ -215,7 +215,10 @@ class PeDataset(Dataset):
             padding="max_length"
         )
         ids = torch.tensor(token["input_ids"], dtype=torch.long)
-        masks = torch.tensor(token["attention_mask"], dtype=torch.long)
+        # masks = torch.tensor(token["attention_mask"], dtype=torch.long)
+        masks = torch.tensor(
+            [1]*len(ids) + [0]*(self.config["max_length"]-len(ids)), dtype=torch.long
+        )
         return ids, masks
 
 
