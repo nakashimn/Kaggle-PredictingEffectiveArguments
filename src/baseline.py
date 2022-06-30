@@ -140,6 +140,8 @@ class TextCleaner:
         return [self.lemmatizer.lemmatize(w) for w in text]
 
     def clean(self, data, col):
+        # Strip Space
+
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
         # Replace
@@ -177,11 +179,10 @@ class TextCleaner:
         # data[col] = data[col].apply(lambda x: ' '.join([word for word in x.split() if word not in (self.stop)]))
         return data
 
-
 class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
-        self.val = df["discourse_text"].values
+        self.val = (df["discourse_type"] + " " + df["discourse_text"]).values
         self.labels = None
         if "discourse_effectiveness" in df.keys():
             self.labels = F.one_hot(
@@ -269,7 +270,7 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.CrossEntropyLoss()
 
         # variables
         self.val_probs = np.nan
@@ -300,14 +301,14 @@ class PeModel(LightningModule):
         logits = self.forward(ids, masks)
         loss = self.criterion(logits, labels)
         logit = logits.detach()
-        prob = logits.sigmoid().detach()
+        prob = logits.softmax(dim=1).detach()
         label = labels.detach()
         return {"loss": loss, "logit": logit, "prob": prob, "label": label}
 
     def predict_step(self, batch, batch_idx):
         ids, masks = batch
         logits = self.forward(ids, masks)
-        prob = logits.sigmoid().detach()
+        prob = logits.softmax(dim=1).detach()
         return {"prob": prob}
 
     def training_epoch_end(self, outputs):
