@@ -26,10 +26,26 @@ config = {
     "n_splits": 3,
     "random_seed": 57,
     "label": "discourse_effectiveness",
+    "labels": [
+        "Ineffective",
+        "Adequate",
+        "Effective"
+    ],
+    "types": [
+        "Claim",
+        "Concluding Statement",
+        "Counterclaim",
+        "Evidence",
+        "Lead",
+        "Position",
+        "Rebuttal"
+    ],
     "experiment_name": "roberta-v0",
     "path": {
         "traindata": "/kaggle/input/feedback-prize-effectiveness/train.csv",
+        "trainessay": "/kaggle/input/feedback-prize-effectiveness/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
+        "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
         "model_dir": "/kaggle/input/model/pe-roberta-v0/"
     },
@@ -39,10 +55,11 @@ config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
     "dim_feature": 768,
     "num_class": 3,
+    "freeze_base_model": True,
     "optimizer":{
         "name": "optim.AdamW",
         "params":{
-            "lr": 1e-5
+            "lr": 1e-2
         },
     },
     "scheduler":{
@@ -54,7 +71,7 @@ config["model"] = {
     }
 }
 config["earlystopping"] = {
-    'patience': 10
+    'patience': 5
 }
 config["checkpoint"] = {
     "dirpath": config["path"]["temporal_dir"],
@@ -75,40 +92,29 @@ config["datamodule"] = {
     "dataset":{
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
-        "max_length": 128,
-        "discourse_type": {
-            "Claim": 0,
-            "Concluding Statement": 1,
-            "Counterclaim": 2,
-            "Evidence": 3,
-            "Lead": 4,
-            "Position": 5,
-            "Rebuttal": 6
-        },
-        "discourse_effectiveness": {
-            "Ineffective": 0,
-            "Adequate": 1,
-            "Effective": 2
-        },
+        "label": config["label"],
+        "max_length": 512,
+        "discourse_effectiveness": {l : i for i, l in enumerate(config["labels"])},
+        "discourse_type": {tp : i for i, tp in enumerate(config["types"])}
     },
     "train_loader": {
-        "batch_size": 64,
+        "batch_size": 8,
         "shuffle": True,
-        "num_workers": 4,
+        "num_workers": 2,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
-        "batch_size": 64,
+        "batch_size": 8,
         "shuffle": False,
-        "num_workers": 4,
+        "num_workers": 2,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
-        "batch_size": 64,
+        "batch_size": 8,
         "shuffle": False,
-        "num_workers": 4,
+        "num_workers": 2,
         "pin_memory": False,
         "drop_last": False
     }
@@ -130,6 +136,14 @@ transforms = {
 }
 
 
+def fetchEssay(essay_id, dirpath):
+    """
+    Read the text file of the specific essay_id
+    """
+    essay_path = os.path.join(dirpath, essay_id + '.txt')
+    essay_text = open(essay_path, 'r').read()
+    return essay_text
+
 class TextCleaner:
     def __init__(self):
         nltk.download('stopwords')
@@ -140,8 +154,6 @@ class TextCleaner:
         return [self.lemmatizer.lemmatize(w) for w in text]
 
     def clean(self, data, col):
-        # Strip Space
-
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
         # Replace
@@ -182,15 +194,14 @@ class TextCleaner:
 class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
-        self.val = (df["discourse_type"] + " " + df["discourse_text"]).values
+        self.val = (
+            df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
+        ).values
         self.labels = None
-        if "discourse_effectiveness" in df.keys():
-            self.labels = F.one_hot(
-                torch.tensor(
-                    [config["discourse_effectiveness"][d] for d in df["discourse_effectiveness"]]
-                ),
-                num_classes=self.config["num_class"]
-            ).float()
+        if config["label"] in df.keys():
+            self.labels = torch.tensor(
+                    [config[config["label"]][d] for d in df[config["label"]]]
+            )
         self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"])
         self.transform = transform
 
@@ -215,10 +226,10 @@ class PeDataset(Dataset):
             padding="max_length"
         )
         ids = torch.tensor(token["input_ids"], dtype=torch.long)
-        # masks = torch.tensor(token["attention_mask"], dtype=torch.long)
-        masks = torch.tensor(
-            [1]*len(ids) + [0]*(self.config["max_length"]-len(ids)), dtype=torch.long
-        )
+        masks = torch.tensor(token["attention_mask"], dtype=torch.long)
+        # masks = torch.tensor(
+        #     [1]*len(ids) + [0]*(self.config["max_length"]-len(ids)), dtype=torch.long
+        # )
         return ids, masks
 
 
@@ -281,14 +292,19 @@ class PeModel(LightningModule):
         self.min_loss = np.nan
 
     def create_model(self):
-        return AutoModel.from_pretrained(self.config["base_model_name"], return_dict=False)
+        base_model = AutoModel.from_pretrained(self.config["base_model_name"], return_dict=False)
+        if not self.config["freeze_base_model"]:
+            return base_model
+        for param in base_model.parameters():
+            param.requires_grad = False
+        return base_model
 
     def create_fully_connected(self):
         return nn.Linear(self.config["dim_feature"], self.config["num_class"])
 
     def forward(self, ids, masks):
         out = self.base_model(ids, masks)
-        out = self.fc(out[0][:, 0])
+        out = self.fc(out[0][:, 0, :])
         return out
 
     def training_step(self, batch, batch_idx):
@@ -522,10 +538,6 @@ class Predictor:
         self.config = config
         self.df_test = df_test
         self.transforms = transforms
-        self.skf = StratifiedKFold(
-            self.config["n_splits"],
-            shuffle=True,
-            random_state=self.config["random_seed"])
 
         # Class
         self.Model = Model
@@ -590,7 +602,7 @@ class ConfusionMatrix:
 
     def draw(self):
         idx_probs = np.argmax(self.probs, axis=1)
-        idx_labels = np.argmax(self.labels, axis=1)
+        idx_labels = self.labels
 
         df_confmat = pd.DataFrame(
             confusion_matrix(idx_probs, idx_labels),
@@ -618,7 +630,7 @@ class F1Score:
 
     def calc(self):
         idx_probs = np.argmax(self.probs, axis=1)
-        idx_labels = np.argmax(self.labels, axis=1)
+        idx_labels = self.labels
         self.f1_scores = {
             "macro": f1_score(idx_probs, idx_labels, average="macro"),
             "micro": f1_score(idx_probs, idx_labels, average="micro")
@@ -650,7 +662,9 @@ if __name__=="__main__":
 
         # Setting Dataset
         df_train = pd.read_csv(config["path"]["traindata"])
+        df_train["essay"] = df_train["essay_id"].apply(fetchEssay, args=(config["path"]["trainessay"],))
         df_train = text_cleaner.clean(df_train, "discourse_text")
+        df_train = text_cleaner.clean(df_train, "essay")
 
         # Training
         trainer = Trainer(
@@ -695,7 +709,9 @@ if __name__=="__main__":
 
         # Setting Dataset
         df_test = pd.read_csv(config["path"]["testdata"])
+        df_test["essay"] = df_test["essay_id"].apply(fetchEssay, args=(config["path"]["testessay"],))
         df_test = text_cleaner.clean(df_test, "discourse_text")
+        df_test = text_cleaner.clean(df_test, "essay")
 
         # Prediction
         predictor = Predictor(
@@ -711,6 +727,6 @@ if __name__=="__main__":
 
         submission = pd.concat([
             df_test["discourse_id"],
-            pd.DataFrame(predictor.probs, columns=config["datamodule"]["dataset"]["discourse_effectiveness"])
+            pd.DataFrame(predictor.probs, columns=config["labels"])
         ], axis=1)
         submission.to_csv("submission.csv", index=None)
