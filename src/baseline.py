@@ -661,6 +661,24 @@ class F1Score:
         }
         return self.f1_scores
 
+class LogLoss:
+    def __init__(self, probs, labels, config):
+        # const
+        self.probs = probs
+        self.labels = labels
+        self.config = config
+        self.prob_min = 10**(-15)
+        self.prob_max = 1-10**(-15)
+
+        # variables
+        self.logloss = np.nan
+
+    def calc(self):
+        norm_probs = self.probs / np.sum(self.probs, axis=1)
+        log_probs = np.log(np.clip(norm_probs, self.prob_min, self.prob_max))
+        self.logloss = -np.mean(labels * log_probs)
+        return self.logloss
+
 
 def create_mlflow_logger(config):
     if not (config["mode"]=="train"):
@@ -718,16 +736,31 @@ if __name__=="__main__":
             f"{config['path']['temporal_dir']}/confmat.png"
         )
 
-        f1_scores = F1Score(
+        f1_score = F1Score(
             trainer.val_probs.values,
             trainer.val_labels.values,
             config["Metrics"]
         )
-        f1_scores = f1_scores.calc()
+        f1_scores = f1_score.calc()
         mlflow_logger.log_metrics({
             "macro_f1_score": f1_scores["macro"],
             "micro_f1_score": f1_scores["micro"]
         })
+
+        logloss = LogLoss(
+            trainer.val_probs.values,
+            trainer.val_labels.values
+        )
+        log_loss = loggloss.calc()
+        mlflow_logger.log_metrics({
+            "logloss": log_loss
+        })
+
+        # output
+        print(f"macro_f1_score: {f1_scores['macro']:.04f}")
+        print(f"micro_f1_score: {f1_scores['micro']:.04f}")
+        print(f"logloss: {log_loss:.04f}")
+
 
     if config["mode"]=="test":
 
