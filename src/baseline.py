@@ -22,7 +22,6 @@ import seaborn as sns
 
 config = {
     "mode": "train",
-    "epoch": 100,
     "n_splits": 3,
     "random_seed": 57,
     "label": "discourse_effectiveness",
@@ -49,13 +48,14 @@ config = {
         "temporal_dir": "../tmp/artifacts/",
         "model_dir": "/kaggle/input/model/pe-roberta-v0/"
     },
-    "modelname": "best_loss"
+    "modelname": "best_loss",
+    "pred_ensemble": False
 }
 config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
     "dim_feature": 768,
     "num_class": 3,
-    "freeze_base_model": True,
+    "freeze_base_model": False,
     "optimizer":{
         "name": "optim.AdamW",
         "params":{
@@ -82,11 +82,14 @@ config["checkpoint"] = {
     "save_weights_only": False
 }
 config["trainer"] = {
-    "gpus": 1,
+    "accelerator": "gpu",
+    "devices": 1,
+    "max_epochs": 100,
     "accumulate_grad_batches": 1,
     "fast_dev_run": False,
     "num_sanity_val_steps": 0,
     "resume_from_checkpoint": None,
+    "precision": 16
 }
 config["datamodule"] = {
     "dataset":{
@@ -100,27 +103,27 @@ config["datamodule"] = {
     "train_loader": {
         "batch_size": 8,
         "shuffle": True,
-        "num_workers": 2,
+        "num_workers": 16,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
         "batch_size": 8,
         "shuffle": False,
-        "num_workers": 2,
+        "num_workers": 16,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
         "batch_size": 8,
         "shuffle": False,
-        "num_workers": 2,
+        "num_workers": 16,
         "pin_memory": False,
         "drop_last": False
     }
 }
 config["Metrics"] = {
-    "label": list(config["datamodule"]["dataset"]["discourse_effectiveness"].keys())
+    "label": config["labels"]
 }
 
 transforms = {
@@ -202,7 +205,7 @@ class PeDataset(Dataset):
             self.labels = torch.tensor(
                     [config[config["label"]][d] for d in df[config["label"]]]
             )
-        self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"])
+        self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"], use_fast=True)
         self.transform = transform
 
     def __len__(self):
@@ -227,9 +230,6 @@ class PeDataset(Dataset):
         )
         ids = torch.tensor(token["input_ids"], dtype=torch.long)
         masks = torch.tensor(token["attention_mask"], dtype=torch.long)
-        # masks = torch.tensor(
-        #     [1]*len(ids) + [0]*(self.config["max_length"]-len(ids)), dtype=torch.long
-        # )
         return ids, masks
 
 
@@ -468,7 +468,6 @@ class Trainer:
 
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
-            max_epochs=self.config["epoch"],
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
             **self.config["trainer"],
         )
@@ -500,7 +499,6 @@ class Trainer:
 
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
-            max_epochs=self.config["epoch"],
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
             **self.config["trainer"],
         )
@@ -522,7 +520,6 @@ class Trainer:
 
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
-            max_epochs=self.config["epoch"],
             **self.config["trainer"]
         )
 
@@ -589,6 +586,33 @@ class Predictor:
             preds = trainer.predict(model, datamodule=datamodule)
         probs = np.concatenate([p["prob"].numpy() for p in preds], axis=0)
         return probs
+
+class PredictorEnsemble(Predictor):
+    def _predict(self, datamodule):
+        # define trainer
+        trainer = pl.Trainer(
+            logger=None,
+            **self.config["trainer"]
+        )
+
+        probs_folds = []
+        for fold in range(self.config["n_splits"]):
+
+            # load model
+            model = self.Model.load_from_checkpoint(
+                f"{self.config['path']['model_dir']}/{self.config['modelname']}_{fold}.ckpt",
+                config=self.config["model"],
+                transforms=self.transforms
+            )
+
+            # prediction
+            with torch.inference_mode():
+                preds = trainer.predict(model, datamodule=datamodule)
+            probs = np.concatenate([p["prob"].numpy() for p in preds], axis=0)
+            probs_folds.append(probs)
+        probs_ensemble = np.mean(probs_folds, axis=0)
+        return probs_ensemble
+
 
 class ConfusionMatrix:
     def __init__(self, probs, labels, config):
@@ -714,7 +738,11 @@ if __name__=="__main__":
         df_test = text_cleaner.clean(df_test, "essay")
 
         # Prediction
-        predictor = Predictor(
+        if config["pred_ensemble"]:
+            cls_predictor = PredictorEnsemble
+        else:
+            cls_predictor = Predictor
+        predictor = cls_predictor(
             PeModel,
             PeDataModule,
             PeDataset,
@@ -725,6 +753,7 @@ if __name__=="__main__":
         )
         predictor.run()
 
+        # output
         submission = pd.concat([
             df_test["discourse_id"],
             pd.DataFrame(predictor.probs, columns=config["labels"])
