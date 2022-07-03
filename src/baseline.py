@@ -1,5 +1,7 @@
 import os
+import shutil
 import sys
+import glob
 import datetime
 import numpy as np
 import pandas as pd
@@ -57,9 +59,9 @@ config["model"] = {
     "num_class": 3,
     "freeze_base_model": False,
     "optimizer":{
-        "name": "optim.AdamW",
+        "name": "optim.RAdam",
         "params":{
-            "lr": 1e-2
+            "lr": 1e-5
         },
     },
     "scheduler":{
@@ -89,7 +91,7 @@ config["trainer"] = {
     "fast_dev_run": False,
     "num_sanity_val_steps": 0,
     "resume_from_checkpoint": None,
-    "precision": 16
+    "precision": 32
 }
 config["datamodule"] = {
     "dataset":{
@@ -676,7 +678,7 @@ class LogLoss:
     def calc(self):
         norm_probs = self.probs / np.sum(self.probs, axis=1)
         log_probs = np.log(np.clip(norm_probs, self.prob_min, self.prob_max))
-        self.logloss = -np.mean(labels * log_probs)
+        self.logloss = -np.mean(self.labels * log_probs)
         return self.logloss
 
 
@@ -691,6 +693,13 @@ def create_mlflow_logger(config):
         run_name=timestamp
     )
     return mlflow_logger
+
+def update_model(config):
+    filepaths_ckpt = glob.glob(f"{config['path']['temporal_dir']}/*.ckpt")
+    dirpath_model = config["path"]["model_dir"]
+    for filepath_ckpt in filepaths_ckpt:
+        shutil.move(filepath_ckpt, dirpath_model)
+
 
 if __name__=="__main__":
 
@@ -760,6 +769,9 @@ if __name__=="__main__":
         print(f"macro_f1_score: {f1_scores['macro']:.04f}")
         print(f"micro_f1_score: {f1_scores['micro']:.04f}")
         print(f"logloss: {log_loss:.04f}")
+
+        # update model
+        update_model(config)
 
 
     if config["mode"]=="test":
