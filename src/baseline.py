@@ -477,7 +477,7 @@ class Trainer:
         trainer.fit(model, datamodule=datamodule)
 
         self.mlflow_logger.experiment.log_artifact(
-            mlflow_logger.run_id,
+            self.mlflow_logger.run_id,
             f"{self.config['path']['temporal_dir']}/{checkpoint_name}.ckpt"
         )
 
@@ -508,7 +508,7 @@ class Trainer:
         trainer.fit(model, datamodule=datamodule)
 
         self.mlflow_logger.experiment.log_artifact(
-            mlflow_logger.run_id,
+            self.mlflow_logger.run_id,
             f"{self.config['path']['temporal_dir']}/{checkpoint_name}.ckpt"
         )
 
