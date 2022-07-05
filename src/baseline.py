@@ -203,10 +203,16 @@ class PeDataset(Dataset):
             df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
         ).values
         self.labels = None
-        if config["label"] in df.keys():
-            self.labels = torch.tensor(
-                    [config[config["label"]][d] for d in df[config["label"]]]
-            )
+        if self.config["label"] in df.keys():
+            # self.labels = torch.tensor(
+            #         [self.config[config["label"]][d] for d in df[self.config["label"]]]
+            # )
+            self.labels = F.one_hot(
+                torch.tensor(
+                    [self.config[self.config["label"]][d] for d in df[self.config["label"]]]
+                ),
+                num_classes=self.config["num_class"]
+            ).float()
         self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"], use_fast=True)
         self.transform = transform
 
@@ -286,7 +292,7 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
 
         # variables
         self.val_probs = np.nan
@@ -322,14 +328,14 @@ class PeModel(LightningModule):
         logits = self.forward(ids, masks)
         loss = self.criterion(logits, labels)
         logit = logits.detach()
-        prob = logits.softmax(dim=1).detach()
+        prob = logits.sigmoid().detach()
         label = labels.detach()
         return {"loss": loss, "logit": logit, "prob": prob, "label": label}
 
     def predict_step(self, batch, batch_idx):
         ids, masks = batch
         logits = self.forward(ids, masks)
-        prob = logits.softmax(dim=1).detach()
+        prob = logits.sigmoid().detach()
         return {"prob": prob}
 
     def training_epoch_end(self, outputs):
@@ -628,7 +634,7 @@ class ConfusionMatrix:
 
     def draw(self):
         idx_probs = np.argmax(self.probs, axis=1)
-        idx_labels = self.labels
+        idx_labels = np.argmax(self.labels, axis=1)
 
         df_confmat = pd.DataFrame(
             confusion_matrix(idx_probs, idx_labels),
@@ -758,7 +764,8 @@ if __name__=="__main__":
 
         logloss = LogLoss(
             trainer.val_probs.values,
-            trainer.val_labels.values
+            trainer.val_labels.values,
+            config["Metrics"]
         )
         log_loss = loggloss.calc()
         mlflow_logger.log_metrics({
