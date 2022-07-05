@@ -134,9 +134,10 @@ if __name__=="__main__":
 
         logloss = LogLoss(
             trainer.val_probs.values,
-            trainer.val_labels.values
+            trainer.val_labels.values,
+            config["Metrics"]
         )
-        log_loss = loggloss.calc()
+        log_loss = logloss.calc()
         mlflow_logger.log_metrics({
             "logloss": log_loss
         })
