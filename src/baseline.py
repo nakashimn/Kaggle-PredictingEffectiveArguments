@@ -98,6 +98,7 @@ config["datamodule"] = {
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
         "label": config["label"],
+        "use_fast_tokenizer": True,
         "max_length": 512,
         "discourse_effectiveness": {l : i for i, l in enumerate(config["labels"])},
         "discourse_type": {tp : i for i, tp in enumerate(config["types"])}
@@ -213,7 +214,7 @@ class PeDataset(Dataset):
                 ),
                 num_classes=self.config["num_class"]
             ).float()
-        self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"], use_fast=True)
+        self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"], use_fast=self.config["use_fast_tokenizer"])
         self.transform = transform
 
     def __len__(self):
@@ -662,7 +663,7 @@ class F1Score:
 
     def calc(self):
         idx_probs = np.argmax(self.probs, axis=1)
-        idx_labels = self.labels
+        idx_labels = np.argmax(self.labels, axis=1)
         self.f1_scores = {
             "macro": f1_score(idx_probs, idx_labels, average="macro"),
             "micro": f1_score(idx_probs, idx_labels, average="micro")
