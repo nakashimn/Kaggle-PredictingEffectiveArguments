@@ -1,7 +1,7 @@
 from baseline import *
 
 config["mode"] = "train"
-config["n_splits"] = 3
+config["n_splits"] = 5
 config["experiment_name"] = "fp-distilbert-v0"
 config["path"]["model_dir"] = "/kaggle/input/model/fp-distilbert-v0/"
 config["pred_ensemble"] = True
@@ -43,13 +43,14 @@ config["trainer"] = {
     "fast_dev_run": False,
     "num_sanity_val_steps": 0,
     "resume_from_checkpoint": None,
-    "precision": 16
+    "precision": 32
 }
 config["datamodule"] = {
     "dataset":{
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
         "label": config["label"],
+        "use_fast_tokenizer": True,
         "max_length": 512,
         "discourse_effectiveness": {l : i for i, l in enumerate(config["labels"])},
         "discourse_type": {tp : i for i, tp in enumerate(config["types"])}
