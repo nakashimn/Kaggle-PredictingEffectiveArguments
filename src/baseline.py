@@ -205,9 +205,6 @@ class PeDataset(Dataset):
         ).values
         self.labels = None
         if self.config["label"] in df.keys():
-            # self.labels = torch.tensor(
-            #         [self.config[config["label"]][d] for d in df[self.config["label"]]]
-            # )
             self.labels = F.one_hot(
                 torch.tensor(
                     [self.config[self.config["label"]][d] for d in df[self.config["label"]]]
@@ -293,7 +290,7 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.CrossEntropyLoss()
 
         # variables
         self.val_probs = np.nan
