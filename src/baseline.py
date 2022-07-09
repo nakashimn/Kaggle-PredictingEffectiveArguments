@@ -59,10 +59,11 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
-    "loss": "FocalLoss",
-    "loss_param":{
-        "gamma": 2.0,
-        "alpha": 0.5
+    "loss":{
+        "name": "FocalLoss",
+        "params":{
+            "gamma": 2.0
+        }
     },
     "optimizer":{
         "name": "optim.RAdam",
@@ -292,10 +293,8 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, pred, target):
-        ce_loss = F.cross_entropy(pred, target, reduction="none")
         probas = pred.softmax(dim=1)
-        loss = target*((1-probas)**self.gamma)*ce_loss
-        loss = loss.mean()
+        loss = (target*((1-probas)**self.gamma)*probas).sum()
         return loss
 
 class PeModel(LightningModule):
@@ -307,8 +306,8 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = eval(config["loss"])(
-            **self.config["loss_param"]
+        self.criterion = eval(config["loss"]["name"])(
+            **self.config["loss"]["params"]
         )
 
         # variables
@@ -733,6 +732,7 @@ if __name__=="__main__":
 
         # logger
         mlflow_logger = create_mlflow_logger(config)
+        mlflow_logger.log_hyperparams(config)
 
         # Setting Dataset
         df_train = pd.read_csv(config["path"]["traindata"])

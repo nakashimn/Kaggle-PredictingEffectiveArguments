@@ -10,10 +10,11 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
-    "loss": "FocalLoss",
-    "loss_param":{
-        "gamma": 2.0,
-        "alpha": 0.5
+    "loss": {
+        "name": "FocalLoss",
+        "params": {
+            "gamma": 2.0
+        }
     },
     "optimizer":{
         "name": "optim.RAdam",
@@ -92,6 +93,7 @@ if __name__=="__main__":
 
         # logger
         mlflow_logger = create_mlflow_logger(config)
+        mlflow_logger.log_hyperparams(config)
 
         # Setting Dataset
         df_train = pd.read_csv(config["path"]["traindata"])
