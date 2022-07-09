@@ -10,6 +10,7 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
+    "loss": "FocalLoss",
     "loss_param":{
         "gamma": 2.0,
         "alpha": 0.5

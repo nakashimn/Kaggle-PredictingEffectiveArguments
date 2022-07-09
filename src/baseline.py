@@ -59,6 +59,7 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
+    "loss": "FocalLoss",
     "loss_param":{
         "gamma": 2.0,
         "alpha": 0.5
@@ -286,15 +287,14 @@ class PeDataModule(LightningDataModule):
         return DataLoader(dataset, **self.config["pred_loader"])
 
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=2.0, alpha=0.5):
+    def __init__(self, gamma=2.0):
         super().__init__()
         self.gamma = gamma
-        self.alpha = alpha
 
     def forward(self, pred, target):
-        bce_loss = F.binary_cross_entropy_with_logits(pred, target, reduction="none")
+        ce_loss = F.cross_entropy(pred, target, reduction="none")
         probas = pred.softmax(dim=1)
-        loss = self.alpha*(target*(1-probas)**self.gamma*bce_loss) + (1-self.alpha)*((1-target)*probas**self.gamma*bce_loss)
+        loss = target*((1-probas)**self.gamma)*ce_loss
         loss = loss.mean()
         return loss
 
@@ -307,11 +307,9 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = FocalLoss(
-            self.config["loss_param"]["gamma"],
-            self.config["loss_param"]["alpha"]
+        self.criterion = eval(config["loss"])(
+            **self.config["loss_param"]
         )
-        # self.criterion = nn.CrossEntropyLoss()
 
         # variables
         self.val_probs = np.nan
