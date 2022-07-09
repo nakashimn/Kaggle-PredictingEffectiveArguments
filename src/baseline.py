@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import pathlib
 import glob
 import datetime
 import numpy as np
@@ -58,6 +59,10 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
+    "loss_param":{
+        "gamma": 2.0,
+        "alpha": 0.5
+    },
     "optimizer":{
         "name": "optim.RAdam",
         "params":{
@@ -280,6 +285,18 @@ class PeDataModule(LightningDataModule):
         dataset = self.Dataset(self.df_pred, self.config["dataset"], self.Tokenizer, self.transforms["pred"])
         return DataLoader(dataset, **self.config["pred_loader"])
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2.0, alpha=0.5):
+        super().__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, pred, target):
+        bce_loss = F.binary_cross_entropy_with_logits(pred, target, reduction="none")
+        probas = pred.softmax(dim=1)
+        loss = self.alpha*(target*(1-probas)**self.gamma*bce_loss) + (1-self.alpha)*((1-target)*probas**self.gamma*bce_loss)
+        loss = loss.mean()
+        return loss
 
 class PeModel(LightningModule):
     def __init__(self, config):
@@ -290,7 +307,11 @@ class PeModel(LightningModule):
         self.base_model = self.create_model()
         self.fc = self.create_fully_connected()
 
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = FocalLoss(
+            self.config["loss_param"]["gamma"],
+            self.config["loss_param"]["alpha"]
+        )
+        # self.criterion = nn.CrossEntropyLoss()
 
         # variables
         self.val_probs = np.nan
@@ -326,14 +347,14 @@ class PeModel(LightningModule):
         logits = self.forward(ids, masks)
         loss = self.criterion(logits, labels)
         logit = logits.detach()
-        prob = logits.sigmoid().detach()
+        prob = logits.softmax(axis=1).detach()
         label = labels.detach()
         return {"loss": loss, "logit": logit, "prob": prob, "label": label}
 
     def predict_step(self, batch, batch_idx):
         ids, masks = batch
         logits = self.forward(ids, masks)
-        prob = logits.sigmoid().detach()
+        prob = logits.softmax(axis=1).detach()
         return {"prob": prob}
 
     def training_epoch_end(self, outputs):
@@ -680,7 +701,7 @@ class LogLoss:
         self.logloss = np.nan
 
     def calc(self):
-        norm_probs = self.probs / np.sum(self.probs, axis=1)
+        norm_probs = self.probs / np.sum(self.probs, axis=1)[:, None]
         log_probs = np.log(np.clip(norm_probs, self.prob_min, self.prob_max))
         self.logloss = -np.mean(self.labels * log_probs)
         return self.logloss
@@ -700,10 +721,10 @@ def create_mlflow_logger(config):
 
 def update_model(config):
     filepaths_ckpt = glob.glob(f"{config['path']['temporal_dir']}/*.ckpt")
-    dirpath_model = config["path"]["model_dir"]
+    dirpath_model = pathlib.Path(config["path"]["model_dir"])
     for filepath_ckpt in filepaths_ckpt:
-        shutil.move(filepath_ckpt, dirpath_model)
-
+        filename = pathlib.Path(filepath_ckpt).name
+        shutil.move(filepath_ckpt, str(dirpath_model / filename))
 
 if __name__=="__main__":
 
@@ -749,15 +770,15 @@ if __name__=="__main__":
             f"{config['path']['temporal_dir']}/confmat.png"
         )
 
-        f1_score = F1Score(
+        f1score = F1Score(
             trainer.val_probs.values,
             trainer.val_labels.values,
             config["Metrics"]
         )
-        f1_scores = f1_score.calc()
+        f1scores = f1score.calc()
         mlflow_logger.log_metrics({
-            "macro_f1_score": f1_scores["macro"],
-            "micro_f1_score": f1_scores["micro"]
+            "macro_f1_score": f1scores["macro"],
+            "micro_f1_score": f1scores["micro"]
         })
 
         logloss = LogLoss(
@@ -765,14 +786,14 @@ if __name__=="__main__":
             trainer.val_labels.values,
             config["Metrics"]
         )
-        log_loss = loggloss.calc()
+        log_loss = logloss.calc()
         mlflow_logger.log_metrics({
             "logloss": log_loss
         })
 
         # output
-        print(f"macro_f1_score: {f1_scores['macro']:.04f}")
-        print(f"micro_f1_score: {f1_scores['micro']:.04f}")
+        print(f"macro_f1_score: {f1scores['macro']:.04f}")
+        print(f"micro_f1_score: {f1scores['micro']:.04f}")
         print(f"logloss: {log_loss:.04f}")
 
         # update model

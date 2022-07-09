@@ -10,6 +10,10 @@ config["model"] = {
     "dim_feature": 768,
     "num_class": 3,
     "freeze_base_model": False,
+    "loss_param":{
+        "gamma": 2.0,
+        "alpha": 0.5
+    },
     "optimizer":{
         "name": "optim.RAdam",
         "params":{
@@ -122,15 +126,15 @@ if __name__=="__main__":
             f"{config['path']['temporal_dir']}/confmat.png"
         )
 
-        f1_score = F1Score(
+        f1score = F1Score(
             trainer.val_probs.values,
             trainer.val_labels.values,
             config["Metrics"]
         )
-        f1_scores = f1_score.calc()
+        f1scores = f1score.calc()
         mlflow_logger.log_metrics({
-            "macro_f1_score": f1_scores["macro"],
-            "micro_f1_score": f1_scores["micro"]
+            "macro_f1_score": f1scores["macro"],
+            "micro_f1_score": f1scores["micro"]
         })
 
         logloss = LogLoss(
@@ -144,8 +148,8 @@ if __name__=="__main__":
         })
 
         # output
-        print(f"macro_f1_score: {f1_scores['macro']:.04f}")
-        print(f"micro_f1_score: {f1_scores['micro']:.04f}")
+        print(f"macro_f1_score: {f1scores['macro']:.04f}")
+        print(f"micro_f1_score: {f1scores['micro']:.04f}")
         print(f"logloss: {log_loss:.04f}")
 
         # update model
