@@ -294,7 +294,7 @@ class FocalLoss(nn.Module):
 
     def forward(self, pred, target):
         probas = pred.softmax(dim=1)
-        loss = -(target*((1-probas)**self.gamma)*(probas.log())).sum()
+        loss = -(target*((1-probas)**self.gamma)*(probas.log())).mean()
         return loss
 
 class PeModel(LightningModule):
