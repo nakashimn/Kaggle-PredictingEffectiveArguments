@@ -412,7 +412,8 @@ class Trainer:
         self.skf = StratifiedKFold(
             self.config["n_splits"],
             shuffle=True,
-            random_state=self.config["random_seed"])
+            random_state=self.config["random_seed"]
+        )
 
         # Class
         self.Model = Model
@@ -700,7 +701,7 @@ class LogLoss:
     def calc(self):
         norm_probs = self.probs / np.sum(self.probs, axis=1)[:, None]
         log_probs = np.log(np.clip(norm_probs, self.prob_min, self.prob_max))
-        self.logloss = -np.mean(self.labels * log_probs)
+        self.logloss = -np.mean(np.sum(self.labels * log_probs, axis=1))
         return self.logloss
 
 
