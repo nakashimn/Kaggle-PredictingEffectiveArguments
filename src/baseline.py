@@ -52,7 +52,8 @@ config = {
         "model_dir": "/kaggle/input/model/pe-roberta-v0/"
     },
     "modelname": "best_loss",
-    "pred_ensemble": False
+    "pred_ensemble": False,
+    "train_with_alldata": False
 }
 config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
@@ -446,8 +447,9 @@ class Trainer:
         self.mlflow_logger.log_metrics({"train_min_loss": self.min_loss.value})
 
         # train final model
-        datamodule = self._create_datamodule_with_alldata()
-        self._train_without_valid(datamodule, self.min_loss.value)
+        if self.config["train_with_alldata"]:
+            datamodule = self._create_datamodule_with_alldata()
+            self._train_without_valid(datamodule, self.min_loss.value)
 
 
     def _create_datamodule(self, idx_train, idx_val):
