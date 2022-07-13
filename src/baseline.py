@@ -496,6 +496,7 @@ class Trainer:
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
+            deterministic=True,
             **self.config["trainer"],
         )
 
@@ -527,6 +528,7 @@ class Trainer:
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
+            deterministic=True,
             **self.config["trainer"],
         )
 
@@ -547,6 +549,7 @@ class Trainer:
 
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
+            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -598,6 +601,7 @@ class Predictor:
         # define trainer
         trainer = pl.Trainer(
             logger=None,
+            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -619,6 +623,7 @@ class PredictorEnsemble(Predictor):
         # define trainer
         trainer = pl.Trainer(
             logger=None,
+            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -726,10 +731,20 @@ def update_model(config):
         filename = pathlib.Path(filepath_ckpt).name
         shutil.move(filepath_ckpt, str(dirpath_model / filename))
 
+def fix_seed(seed):
+    # Numpy
+    np.random.seed(seed)
+    # Pytorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+
 if __name__=="__main__":
 
     # preprocessor
     text_cleaner = TextCleaner()
+
+    fix_seed(config["seed"])
 
     if config["mode"]=="train":
 
