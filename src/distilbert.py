@@ -9,11 +9,12 @@ config["model"] = {
     "base_model_name": "/kaggle/input/distilbertbaseuncased",
     "dim_feature": 768,
     "num_class": 3,
+    "dropout_rate": 0.5,
     "freeze_base_model": False,
     "loss": {
-        "name": "FocalLoss",
+        "name": "nn.CrossEntropyLoss",
         "params": {
-            "gamma": 2.0
+            "weight": None
         }
     },
     "optimizer":{
@@ -88,6 +89,8 @@ if __name__=="__main__":
 
     # preprocessor
     text_cleaner = TextCleaner()
+
+    fix_seed(config["seed"])
 
     if config["mode"]=="train":
 

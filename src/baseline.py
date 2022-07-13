@@ -59,6 +59,7 @@ config["model"] = {
     "base_model_name": "/kaggle/input/roberta-base",
     "dim_feature": 768,
     "num_class": 3,
+    "dropout_rate": 0.5,
     "freeze_base_model": False,
     "loss":{
         "name": "FocalLoss",
@@ -305,6 +306,7 @@ class PeModel(LightningModule):
         # const
         self.config = config
         self.base_model = self.create_model()
+        self.dropout = nn.Dropout(self.config["dropout_rate"])
         self.fc = self.create_fully_connected()
 
         self.criterion = eval(config["loss"]["name"])(
@@ -329,7 +331,8 @@ class PeModel(LightningModule):
 
     def forward(self, ids, masks):
         out = self.base_model(ids, masks)
-        out = self.fc(out[0][:, 0, :])
+        out = self.dropout(out[0][:, 0, :])
+        out = self.fc(out)
         return out
 
     def training_step(self, batch, batch_idx):
