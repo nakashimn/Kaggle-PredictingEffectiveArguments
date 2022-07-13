@@ -747,7 +747,7 @@ if __name__=="__main__":
     # preprocessor
     text_cleaner = TextCleaner()
 
-    fix_seed(config["seed"])
+    fix_seed(config["random_seed"])
 
     if config["mode"]=="train":
 
