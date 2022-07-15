@@ -1,7 +1,7 @@
 from baseline import *
 
 config["mode"] = "train"
-config["n_splits"] = 5
+config["n_splits"] = 3
 config["experiment_name"] = "fp-distilbert-v0"
 config["path"]["model_dir"] = "/kaggle/input/model/fp-distilbert-v0/"
 config["pred_ensemble"] = True
@@ -48,9 +48,18 @@ config["trainer"] = {
     "max_epochs": 100,
     "accumulate_grad_batches": 1,
     "fast_dev_run": False,
+    "deterministic": True,
     "num_sanity_val_steps": 0,
     "resume_from_checkpoint": None,
-    "precision": 32
+    "precision": 16
+}
+config["kfold"] = {
+    "name": "StratifiedGroupKFold",
+    "params": {
+        "n_splits": config["n_splits"],
+        "shuffle": True,
+        "random_state": config["random_seed"]
+    }
 }
 config["datamodule"] = {
     "dataset":{

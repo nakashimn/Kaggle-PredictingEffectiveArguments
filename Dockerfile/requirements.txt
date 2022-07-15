@@ -15,6 +15,7 @@ torchaudio==0.11.0
 pytorch-lightning
 pytorch-tabnet
 transformers
+sentencepiece
 nltk
 timm
 mlflow

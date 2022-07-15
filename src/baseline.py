@@ -17,7 +17,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import LightningModule, LightningDataModule, callbacks
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, StratifiedGroupKFold
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
@@ -28,6 +28,7 @@ config = {
     "n_splits": 3,
     "random_seed": 57,
     "label": "discourse_effectiveness",
+    "group": "essay_id",
     "labels": [
         "Ineffective",
         "Adequate",
@@ -82,7 +83,7 @@ config["model"] = {
     }
 }
 config["earlystopping"] = {
-    'patience': 5
+    "patience": 5
 }
 config["checkpoint"] = {
     "dirpath": config["path"]["temporal_dir"],
@@ -98,9 +99,18 @@ config["trainer"] = {
     "max_epochs": 100,
     "accumulate_grad_batches": 1,
     "fast_dev_run": False,
+    "deterministic": True,
     "num_sanity_val_steps": 0,
     "resume_from_checkpoint": None,
     "precision": 32
+}
+config["kfold"] = {
+    "name": "StratifiedKFold",
+    "params": {
+        "n_splits": config["n_splits"],
+        "shuffle": True,
+        "random_state": config["random_seed"]
+    }
 }
 config["datamodule"] = {
     "dataset":{
@@ -413,10 +423,8 @@ class Trainer:
         self.config = config
         self.df_train = df_train
         self.transforms = transforms
-        self.skf = StratifiedKFold(
-            self.config["n_splits"],
-            shuffle=True,
-            random_state=self.config["random_seed"]
+        self.kfold = eval(self.config["kfold"]["name"])(
+            **self.config["kfold"]["params"]
         )
 
         # Class
@@ -433,7 +441,7 @@ class Trainer:
         self.val_labels = self.ValidResult()
 
     def run(self):
-        for fold, (idx_train, idx_val) in enumerate(self.skf.split(self.df_train, self.df_train[self.config["label"]])):
+        for fold, (idx_train, idx_val) in enumerate(self.kfold.split(self.df_train, self.df_train[self.config["label"], self.df_train[self.config["group"]]])):
             # create datamodule
             datamodule = self._create_datamodule(idx_train, idx_val)
 
@@ -499,7 +507,6 @@ class Trainer:
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
-            deterministic=True,
             **self.config["trainer"],
         )
 
@@ -531,7 +538,6 @@ class Trainer:
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
             callbacks=[lr_monitor, loss_checkpoint, earystopping],
-            deterministic=True,
             **self.config["trainer"],
         )
 
@@ -552,7 +558,6 @@ class Trainer:
 
         trainer = pl.Trainer(
             logger=self.mlflow_logger,
-            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -604,7 +609,6 @@ class Predictor:
         # define trainer
         trainer = pl.Trainer(
             logger=None,
-            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -616,6 +620,7 @@ class Predictor:
         )
 
         # prediction
+        model.eval()
         with torch.inference_mode():
             preds = trainer.predict(model, datamodule=datamodule)
         probs = np.concatenate([p["prob"].numpy() for p in preds], axis=0)
@@ -626,7 +631,6 @@ class PredictorEnsemble(Predictor):
         # define trainer
         trainer = pl.Trainer(
             logger=None,
-            deterministic=True,
             **self.config["trainer"]
         )
 
@@ -641,6 +645,7 @@ class PredictorEnsemble(Predictor):
             )
 
             # prediction
+            model.eval()
             with torch.inference_mode():
                 preds = trainer.predict(model, datamodule=datamodule)
             probs = np.concatenate([p["prob"].numpy() for p in preds], axis=0)
