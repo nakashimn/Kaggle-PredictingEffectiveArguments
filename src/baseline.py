@@ -224,12 +224,7 @@ class PeDataset(Dataset):
         ).values
         self.labels = None
         if self.config["label"] in df.keys():
-            self.labels = F.one_hot(
-                torch.tensor(
-                    [self.config[self.config["label"]][d] for d in df[self.config["label"]]]
-                ),
-                num_classes=self.config["num_class"]
-            ).float()
+            self.labels = self.read_labels(df)
         self.tokenizer = Tokenizer.from_pretrained(
             config["base_model_name"],
             use_fast=self.config["use_fast_tokenizer"]
@@ -247,6 +242,15 @@ class PeDataset(Dataset):
             labels = self.labels[idx]
             return ids, masks, labels
         return ids, masks
+
+    def read_labels(self, df):
+        labels = F.one_hot(
+            torch.tensor(
+                [self.config[self.config["label"]][d] for d in df[self.config["label"]]]
+            ),
+            num_classes=self.config["num_class"]
+        ).float()
+        return labels
 
     def tokenize(self, text):
         token = self.tokenizer.encode_plus(
