@@ -230,7 +230,10 @@ class PeDataset(Dataset):
                 ),
                 num_classes=self.config["num_class"]
             ).float()
-        self.tokenizer = Tokenizer.from_pretrained(config["base_model_name"], use_fast=self.config["use_fast_tokenizer"])
+        self.tokenizer = Tokenizer.from_pretrained(
+            config["base_model_name"],
+            use_fast=self.config["use_fast_tokenizer"]
+        )
         self.transform = transform
 
     def __len__(self):
@@ -288,15 +291,30 @@ class PeDataModule(LightningDataModule):
         return {"train": None, "valid": None, "pred": None}
 
     def train_dataloader(self):
-        dataset = self.Dataset(self.df_train, self.config["dataset"], self.Tokenizer, self.transforms["train"])
+        dataset = self.Dataset(
+            self.df_train,
+            self.config["dataset"],
+            self.Tokenizer,
+            self.transforms["train"]
+        )
         return DataLoader(dataset, **self.config["train_loader"])
 
     def val_dataloader(self):
-        dataset = self.Dataset(self.df_val, self.config["dataset"], self.Tokenizer, self.transforms["valid"])
+        dataset = self.Dataset(
+            self.df_val,
+            self.config["dataset"],
+            self.Tokenizer,
+            self.transforms["valid"]
+        )
         return DataLoader(dataset, **self.config["val_loader"])
 
     def predict_dataloader(self):
-        dataset = self.Dataset(self.df_pred, self.config["dataset"], self.Tokenizer, self.transforms["pred"])
+        dataset = self.Dataset(
+            self.df_pred,
+            self.config["dataset"],
+            self.Tokenizer,
+            self.transforms["pred"]
+        )
         return DataLoader(dataset, **self.config["pred_loader"])
 
 class FocalLoss(nn.Module):
@@ -329,7 +347,10 @@ class PeModel(LightningModule):
         self.min_loss = np.nan
 
     def create_model(self):
-        base_model = AutoModel.from_pretrained(self.config["base_model_name"], return_dict=False)
+        base_model = AutoModel.from_pretrained(
+            self.config["base_model_name"],
+            return_dict=False
+        )
         if not self.config["freeze_base_model"]:
             return base_model
         for param in base_model.parameters():
@@ -390,7 +411,8 @@ class PeModel(LightningModule):
 
     def configure_optimizers(self):
         optimizer = eval(self.config["optimizer"]["name"])(
-            self.parameters(), **self.config["optimizer"]["params"]
+            self.parameters(),
+            **self.config["optimizer"]["params"]
         )
         scheduler = eval(self.config["scheduler"]["name"])(
             optimizer,
@@ -417,7 +439,10 @@ class ValidResult:
         return self.values
 
 class Trainer:
-    def __init__(self, Model, DataModule, Dataset, Tokenizer, ValidResult, MinLoss, df_train, config, transforms, mlflow_logger):
+    def __init__(
+        self, Model, DataModule, Dataset, Tokenizer, ValidResult, MinLoss,
+        df_train, config, transforms, mlflow_logger
+    ):
         # const
         self.mlflow_logger = mlflow_logger
         self.config = config
@@ -441,7 +466,14 @@ class Trainer:
         self.val_labels = self.ValidResult()
 
     def run(self):
-        for fold, (idx_train, idx_val) in enumerate(self.kfold.split(self.df_train, self.df_train[self.config["label"], self.df_train[self.config["group"]]])):
+        iterator_kfold = enumerate(
+            self.kfold.split(
+                self.df_train,
+                self.df_train[self.config["label"]],
+                self.df_train[self.config["group"]]
+            )
+        )
+        for fold, (idx_train, idx_val) in iterator_kfold:
             # create datamodule
             datamodule = self._create_datamodule(idx_train, idx_val)
 
@@ -568,7 +600,9 @@ class Trainer:
         return val_probs, val_labels
 
 class Predictor:
-    def __init__(self, Model, DataModule, Dataset, Tokenizer, df_test, config, transforms):
+    def __init__(
+        self, Model, DataModule, Dataset, Tokenizer, df_test, config, transforms
+    ):
         # const
         self.config = config
         self.df_test = df_test
