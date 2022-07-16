@@ -1,3 +1,4 @@
+from lib2to3.pgen2 import token
 import os
 import shutil
 import sys
@@ -220,13 +221,13 @@ class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
         self.val = (
-            df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
+            df["discourse_type"]+ " [SEP] " + df["discourse_text"] + " [SEP] " + df["essay"]
         ).values
         self.labels = None
         if self.config["label"] in df.keys():
             self.labels = self.read_labels(df)
         self.tokenizer = Tokenizer.from_pretrained(
-            config["base_model_name"],
+            self.config["base_model_name"],
             use_fast=self.config["use_fast_tokenizer"]
         )
         self.transform = transform
