@@ -1,11 +1,13 @@
 from baseline import *
+from model_v1 import PeModelV1
 
 config["mode"] = "train"
 config["n_splits"] = 3
-config["experiment_name"] = "fp-distilbert-v0"
-config["path"]["model_dir"] = "/kaggle/input/model/fp-distilbert-v0/"
+config["experiment_name"] = "fp-distilbert-v1"
+config["path"]["model_dir"] = "/kaggle/input/model/fp-distilbert-v1/"
 config["pred_ensemble"] = True
 config["model"] = {
+    "name": "PeModelV1",
     "base_model_name": "/kaggle/input/distilbertbaseuncased",
     "dim_feature": 768,
     "num_class": 3,
@@ -29,6 +31,26 @@ config["model"] = {
             "T_0": 20,
             "eta_min": 1e-4,
         }
+    }
+}
+config["model"]["conv_0"] = {
+    "params": {
+        "in_channels": config["model"]["dim_feature"],
+        "out_channels": 128,
+        "kernel_size": 3,
+        "stride": 1,
+        "padding": 0,
+        "bias": True
+    }
+}
+config["model"]["conv_1"] = {
+    "params": {
+        "in_channels": 128,
+        "out_channels": config["model"]["num_class"],
+        "kernel_size": 3,
+        "stride": 1,
+        "padding": 0,
+        "bias": True
     }
 }
 config["earlystopping"] = {
@@ -115,7 +137,7 @@ if __name__=="__main__":
 
         # Training
         trainer = Trainer(
-            PeModel,
+            eval(config["model"]["name"]),
             PeDataModule,
             PeDataset,
             AutoTokenizer,
@@ -185,7 +207,7 @@ if __name__=="__main__":
         else:
             cls_predictor = Predictor
         predictor = cls_predictor(
-            PeModel,
+            eval(config["model"]["name"]),
             PeDataModule,
             PeDataset,
             AutoTokenizer,
