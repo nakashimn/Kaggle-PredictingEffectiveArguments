@@ -9,7 +9,7 @@ config["model"] = {
     "base_model_name": "/kaggle/input/distilbertbaseuncased",
     "dim_feature": 768,
     "num_class": 3,
-    "dropout_rate": 0.5,
+    "dropout_rate": 0.2,
     "freeze_base_model": False,
     "loss": {
         "name": "nn.CrossEntropyLoss",
