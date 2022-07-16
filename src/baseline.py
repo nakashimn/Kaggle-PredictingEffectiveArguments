@@ -221,7 +221,7 @@ class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
         self.val = (
-            df["discourse_type"]+ " [SEP] " + df["discourse_text"] + " [SEP] " + df["essay"]
+            df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
         ).values
         self.labels = None
         if self.config["label"] in df.keys():
