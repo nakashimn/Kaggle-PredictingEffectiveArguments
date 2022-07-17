@@ -1,6 +1,8 @@
 import os
 import shutil
+import argparse
 import sys
+import subprocess
 import pathlib
 import glob
 import datetime
@@ -22,6 +24,7 @@ from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+import traceback
 
 config = {
     "mode": "train",
@@ -777,6 +780,15 @@ def update_model(config):
         filename = pathlib.Path(filepath_ckpt).name
         shutil.move(filepath_ckpt, str(dirpath_model / filename))
 
+def upload_model(config, message):
+    try:
+        subprocess.run(
+            ["kaggle", "datasets", "version", "-m", message],
+            cwd=config["path"]["model_dir"]
+        )
+    except:
+        print(traceback.format_exc())
+
 def fix_seed(seed):
     # Numpy
     np.random.seed(seed)
@@ -785,7 +797,20 @@ def fix_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-m", "--message",
+        help="message for upload to kaggle datasets.",
+        type=str,
+        required=True
+    )
+    return parser.parse_args()
+
 if __name__=="__main__":
+
+    # args
+    args = get_args()
 
     # preprocessor
     text_cleaner = TextCleaner()
@@ -860,7 +885,7 @@ if __name__=="__main__":
 
         # update model
         update_model(config)
-
+        upload_model(config, args.message)
 
     if config["mode"]=="test":
 

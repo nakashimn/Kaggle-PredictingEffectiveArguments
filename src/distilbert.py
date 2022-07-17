@@ -118,6 +118,9 @@ config["datamodule"] = {
 
 if __name__=="__main__":
 
+    # args
+    args = get_args()
+
     # preprocessor
     text_cleaner = TextCleaner()
 
@@ -191,7 +194,7 @@ if __name__=="__main__":
 
         # update model
         update_model(config)
-
+        upload_model(config, args.message)
 
     if config["mode"]=="test":
 
