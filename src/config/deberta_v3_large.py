@@ -31,7 +31,7 @@ config = {
     "train_with_alldata": False
 }
 config["model"] = {
-    "base_model_name": "/kaggle/input/roberta-base",
+    "base_model_name": "/kaggle/input/deberta-v3-large",
     "dim_feature": 1024,
     "num_class": 3,
     "dropout_rate": 0.2,
@@ -97,21 +97,21 @@ config["datamodule"] = {
         "discourse_type": {tp : i for i, tp in enumerate(config["types"])}
     },
     "train_loader": {
-        "batch_size": 4,
+        "batch_size": 2,
         "shuffle": True,
         "num_workers": 16,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
-        "batch_size": 4,
+        "batch_size": 2,
         "shuffle": False,
         "num_workers": 16,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
-        "batch_size": 4,
+        "batch_size": 2,
         "shuffle": False,
         "num_workers": 16,
         "pin_memory": False,
