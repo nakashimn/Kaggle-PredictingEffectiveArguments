@@ -1,4 +1,6 @@
 import os
+import sys
+import pathlib
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import torch
@@ -8,7 +10,8 @@ from pytorch_lightning import LightningModule
 from transformers import AutoModel
 import traceback
 
-from .loss_functions import FocalLoss
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[0]))
+from loss_functions import FocalLoss
 
 class FpModelBase(LightningModule, metaclass=ABCMeta):
     def __init__(self, config):

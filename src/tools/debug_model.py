@@ -4,7 +4,6 @@ import torch
 from transformers import AutoTokenizer
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 from config.distilbert import config
-
 from components.models import FpModel, FpModelV1
 
 # prepare
