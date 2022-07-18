@@ -811,6 +811,19 @@ def get_args():
     )
     return parser.parse_args()
 
+def read_train_dataset(config):
+    df_train = pd.read_csv(config["path"]["traindata"])
+    df_train["essay"] = df_train["essay_id"].apply(fetchEssay, args=(config["path"]["trainessay"],))
+    df_train = text_cleaner.clean(df_train, "discourse_text")
+    df_train = text_cleaner.clean(df_train, "essay")
+    return df_train
+
+def read_test_dataset(config):
+    df_test = pd.read_csv(config["path"]["testdata"])
+    df_test["essay"] = df_test["essay_id"].apply(fetchEssay, args=(config["path"]["testessay"],))
+    df_test = text_cleaner.clean(df_test, "discourse_text")
+    df_test = text_cleaner.clean(df_test, "essay")
+
 if __name__=="__main__":
 
     # args
@@ -828,10 +841,7 @@ if __name__=="__main__":
         mlflow_logger.log_hyperparams(config)
 
         # Setting Dataset
-        df_train = pd.read_csv(config["path"]["traindata"])
-        df_train["essay"] = df_train["essay_id"].apply(fetchEssay, args=(config["path"]["trainessay"],))
-        df_train = text_cleaner.clean(df_train, "discourse_text")
-        df_train = text_cleaner.clean(df_train, "essay")
+        df_train = read_train_dataset(config)
 
         # Training
         trainer = Trainer(
@@ -894,10 +904,7 @@ if __name__=="__main__":
     if config["mode"]=="test":
 
         # Setting Dataset
-        df_test = pd.read_csv(config["path"]["testdata"])
-        df_test["essay"] = df_test["essay_id"].apply(fetchEssay, args=(config["path"]["testessay"],))
-        df_test = text_cleaner.clean(df_test, "discourse_text")
-        df_test = text_cleaner.clean(df_test, "essay")
+        df_test = read_test_dataset(config)
 
         # Prediction
         if config["pred_ensemble"]:
