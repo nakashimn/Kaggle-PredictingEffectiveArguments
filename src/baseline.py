@@ -26,6 +26,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import traceback
 
+from models import FpModel
+
 config = {
     "mode": "train",
     "n_splits": 3,
@@ -219,24 +221,25 @@ class TextCleaner:
         # data[col] = data[col].apply(lambda x: ' '.join([word for word in x.split() if word not in (self.stop)]))
         return data
 
-class PeDataset(Dataset):
+class FpDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
-        self.val = self.read_values(df)
-        self.labels = None
-        if self.config["label"] in df.keys():
-            self.labels = self.read_labels(df)
         self.tokenizer = Tokenizer.from_pretrained(
             self.config["base_model_name"],
             use_fast=self.config["use_fast_tokenizer"]
         )
+        self.ids, self.masks = self.read_values(df)
+        self.labels = None
+        if self.config["label"] in df.keys():
+            self.labels = self.read_labels(df)
         self.transform = transform
 
     def __len__(self):
-        return len(self.val)
+        return len(self.ids)
 
     def __getitem__(self, idx):
-        ids, masks = self.tokenize(self.val[idx])
+        ids = torch.tensor(self.ids[idx], dtype=torch.long)
+        masks = torch.tensor(self.masks[idx], dtype=torch.long)
         if self.transform is not None:
             ids = self.transform(ids)
         if self.labels is not None:
@@ -245,10 +248,18 @@ class PeDataset(Dataset):
         return ids, masks
 
     def read_values(self, df):
-        values = (
+        texts = (
             df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
         ).values
-        return values
+        ids = []
+        masks = []
+        for text in texts:
+            token = self.tokenize(text)
+            ids.append(token["input_ids"])
+            masks.append(token["attention_mask"])
+        ids = np.array(ids, dtype=np.uint16)
+        masks = np.array(masks, dtype=np.uint8)
+        return ids, masks
 
     def read_labels(self, df):
         labels = F.one_hot(
@@ -267,12 +278,10 @@ class PeDataset(Dataset):
             max_length=self.config["max_length"],
             padding="max_length"
         )
-        ids = torch.tensor(token["input_ids"], dtype=torch.long)
-        masks = torch.tensor(token["attention_mask"], dtype=torch.long)
-        return ids, masks
+        return token
 
 
-class PeDataModule(LightningDataModule):
+class FpDataModule(LightningDataModule):
     def __init__(
         self,
         df_train,
@@ -327,109 +336,6 @@ class PeDataModule(LightningDataModule):
             self.transforms["pred"]
         )
         return DataLoader(dataset, **self.config["pred_loader"])
-
-class FocalLoss(nn.Module):
-    def __init__(self, gamma=2.0):
-        super().__init__()
-        self.gamma = gamma
-
-    def forward(self, pred, target):
-        probas = pred.softmax(dim=1)
-        loss = -(target*((1-probas)**self.gamma)*(probas.log())).mean()
-        return loss
-
-class PeModel(LightningModule):
-    def __init__(self, config):
-        super().__init__()
-
-        # const
-        self.config = config
-        self.base_model = self.create_base_model()
-        self.dropout = nn.Dropout(self.config["dropout_rate"])
-        self.fc = self.create_fully_connected()
-
-        self.criterion = eval(config["loss"]["name"])(
-            **self.config["loss"]["params"]
-        )
-
-        # variables
-        self.val_probs = np.nan
-        self.val_labels = np.nan
-        self.min_loss = np.nan
-
-    def create_base_model(self):
-        base_model = AutoModel.from_pretrained(
-            self.config["base_model_name"],
-            return_dict=False
-        )
-        if not self.config["freeze_base_model"]:
-            return base_model
-        for param in base_model.parameters():
-            param.requires_grad = False
-        return base_model
-
-    def create_fully_connected(self):
-        return nn.Linear(self.config["dim_feature"], self.config["num_class"])
-
-    def forward(self, ids, masks):
-        out = self.base_model(ids, masks)
-        out = self.dropout(out[0][:, 0, :])
-        out = self.fc(out)
-        return out
-
-    def training_step(self, batch, batch_idx):
-        ids, masks, labels = batch
-        logits = self.forward(ids, masks)
-        loss = self.criterion(logits, labels)
-        logit = logits.detach()
-        label = labels.detach()
-        return {"loss": loss, "logit": logit, "label": label}
-
-    def validation_step(self, batch, batch_idx):
-        ids, masks, labels = batch
-        logits = self.forward(ids, masks)
-        loss = self.criterion(logits, labels)
-        logit = logits.detach()
-        prob = logits.softmax(axis=1).detach()
-        label = labels.detach()
-        return {"loss": loss, "logit": logit, "prob": prob, "label": label}
-
-    def predict_step(self, batch, batch_idx):
-        ids, masks = batch
-        logits = self.forward(ids, masks)
-        prob = logits.softmax(axis=1).detach()
-        return {"prob": prob}
-
-    def training_epoch_end(self, outputs):
-        logits = torch.cat([out["logit"] for out in outputs])
-        labels = torch.cat([out["label"] for out in outputs])
-        metrics = self.criterion(logits, labels)
-        self.min_loss = np.nanmin([self.min_loss, metrics.detach().cpu().numpy()])
-        self.log(f"train_loss", metrics)
-        return super().training_epoch_end(outputs)
-
-    def validation_epoch_end(self, outputs):
-        logits = torch.cat([out["logit"] for out in outputs])
-        probs = torch.cat([out["prob"] for out in outputs])
-        labels = torch.cat([out["label"] for out in outputs])
-        metrics = self.criterion(logits, labels)
-        self.log(f'val_loss', metrics)
-
-        self.val_probs = probs.detach().cpu().numpy()
-        self.val_labels = labels.detach().cpu().numpy()
-
-        return super().validation_epoch_end(outputs)
-
-    def configure_optimizers(self):
-        optimizer = eval(self.config["optimizer"]["name"])(
-            self.parameters(),
-            **self.config["optimizer"]["params"]
-        )
-        scheduler = eval(self.config["scheduler"]["name"])(
-            optimizer,
-            **self.config["scheduler"]["params"]
-        )
-        return [optimizer], [scheduler]
 
 class MinLoss:
     def __init__(self):
@@ -845,9 +751,9 @@ if __name__=="__main__":
 
         # Training
         trainer = Trainer(
-            PeModel,
-            PeDataModule,
-            PeDataset,
+            FpModel,
+            FpDataModule,
+            FpDataset,
             AutoTokenizer,
             ValidResult,
             MinLoss,
@@ -912,9 +818,9 @@ if __name__=="__main__":
         else:
             cls_predictor = Predictor
         predictor = cls_predictor(
-            PeModel,
-            PeDataModule,
-            PeDataset,
+            FpModel,
+            FpDataModule,
+            FpDataset,
             AutoTokenizer,
             df_test,
             config,
