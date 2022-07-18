@@ -8,22 +8,21 @@ import traceback
 class FpDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
+        self.val = self.read_values(df)
+        self.labels = None
+        if self.config["label"] in df.keys():
+            self.labels = self.read_labels(df)
         self.tokenizer = Tokenizer.from_pretrained(
             self.config["base_model_name"],
             use_fast=self.config["use_fast_tokenizer"]
         )
-        self.ids, self.masks = self.read_values(df)
-        self.labels = None
-        if self.config["label"] in df.keys():
-            self.labels = self.read_labels(df)
         self.transform = transform
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.val)
 
     def __getitem__(self, idx):
-        ids = torch.tensor(self.ids[idx].astype(np.int32), dtype=torch.long)
-        masks = torch.tensor(self.masks[idx], dtype=torch.long)
+        ids, masks = self.tokenize(self.val[idx])
         if self.transform is not None:
             ids = self.transform(ids)
         if self.labels is not None:
@@ -32,18 +31,10 @@ class FpDataset(Dataset):
         return ids, masks
 
     def read_values(self, df):
-        texts = (
+        values = (
             df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
         ).values
-        ids = []
-        masks = []
-        for text in texts:
-            token = self.tokenize(text)
-            ids.append(token["input_ids"])
-            masks.append(token["attention_mask"])
-        ids = np.array(ids, dtype=np.uint16)
-        masks = np.array(masks, dtype=np.int8)
-        return ids, masks
+        return values
 
     def read_labels(self, df):
         labels = F.one_hot(
@@ -62,7 +53,9 @@ class FpDataset(Dataset):
             max_length=self.config["max_length"],
             padding="max_length"
         )
-        return token
+        ids = torch.tensor(token["input_ids"], dtype=torch.long)
+        masks = torch.tensor(token["attention_mask"], dtype=torch.long)
+        return ids, masks
 
 class FpDataModule(LightningDataModule):
     def __init__(
