@@ -222,9 +222,7 @@ class TextCleaner:
 class PeDataset(Dataset):
     def __init__(self, df, config, Tokenizer, transform=None):
         self.config = config
-        self.val = (
-            df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
-        ).values
+        self.val = self.read_values(df)
         self.labels = None
         if self.config["label"] in df.keys():
             self.labels = self.read_labels(df)
@@ -245,6 +243,12 @@ class PeDataset(Dataset):
             labels = self.labels[idx]
             return ids, masks, labels
         return ids, masks
+
+    def read_values(self, df):
+        values = (
+            df["discourse_type"]+ " " + df["discourse_text"] + " " + df["essay"]
+        ).values
+        return values
 
     def read_labels(self, df):
         labels = F.one_hot(
@@ -340,7 +344,7 @@ class PeModel(LightningModule):
 
         # const
         self.config = config
-        self.base_model = self.create_model()
+        self.base_model = self.create_base_model()
         self.dropout = nn.Dropout(self.config["dropout_rate"])
         self.fc = self.create_fully_connected()
 
@@ -353,7 +357,7 @@ class PeModel(LightningModule):
         self.val_labels = np.nan
         self.min_loss = np.nan
 
-    def create_model(self):
+    def create_base_model(self):
         base_model = AutoModel.from_pretrained(
             self.config["base_model_name"],
             return_dict=False
