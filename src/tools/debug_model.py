@@ -1,5 +1,11 @@
-from baseline import *
-from model_v1 import PeModelV1
+import sys
+import pathlib
+import torch
+from transformers import AutoTokenizer
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+from config.distilbert import config
+
+from components.models import FpModel, FpModelV1
 
 # prepare
 tokenizer = AutoTokenizer.from_pretrained(
@@ -19,9 +25,9 @@ ids = torch.tensor([token["input_ids"]])
 masks = torch.tensor([token["attention_mask"]])
 
 # model
-model = PeModel(config["model"])
+model = FpModel(config["model"])
 model(ids, masks)
 
 # model_v1
-modelv1 = PeModelV1(config["model"])
+modelv1 = FpModelV1(config["model"])
 modelv1(ids, masks)
