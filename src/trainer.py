@@ -200,7 +200,7 @@ def update_model(config, filepath_config):
         filename = pathlib.Path(filepath_ckpt).name
         shutil.move(filepath_ckpt, str(dirpath_model / filename))
     filename_config = pathlib.Path(filepath_config).name
-    shutil.move(filepath_config, str(dirpath_model / filename_config))
+    shutil.copy2(filepath_config, str(dirpath_model / filename_config))
 
 def upload_model(config, message):
     try:
