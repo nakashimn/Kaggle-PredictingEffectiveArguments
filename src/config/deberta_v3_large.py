@@ -24,14 +24,14 @@ config = {
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
-        "model_dir": "/kaggle/input/model/fp-deberta-v3-large-v0/"
+        "model_dir": "/kaggle/input/fp-deberta-v3-large-v0/"
     },
     "modelname": "best_loss",
     "pred_ensemble": True,
     "train_with_alldata": False
 }
 config["model"] = {
-    "base_model_name": "/kaggle/input/deberta-v3-large",
+    "base_model_name": "/kaggle/input/deberta-v3-large/deberta-v3-large",
     "dim_feature": 1024,
     "num_class": 3,
     "dropout_rate": 0.2,

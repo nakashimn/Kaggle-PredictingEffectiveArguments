@@ -24,7 +24,7 @@ config = {
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
-        "model_dir": "/kaggle/input/model/fp-roberta-v0/"
+        "model_dir": "/kaggle/input/fp-roberta-v0/"
     },
     "modelname": "best_loss",
     "pred_ensemble": True,
