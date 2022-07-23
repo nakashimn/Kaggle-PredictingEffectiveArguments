@@ -1,0 +1,221 @@
+= ojosama
+:toc: left
+:sectnums:
+
+image:https://github.com/jiro4989/ojosama/workflows/test/badge.svg[test, link=https://github.com/jiro4989/ojosama/actions]
+image:https://codecov.io/gh/jiro4989/ojosama/branch/main/graph/badge.svg[codecov, link=https://codecov.io/gh/jiro4989/ojosama]
+
+テキストを壱百満天原サロメお嬢様風の口調に変換して出力します。
+
+image:./docs/demo.gif[]
+
+== 概要
+
+任意のテキストを壱百満天原サロメお嬢様風の口調風に変換する非公式プログラムです。
+コマンドラインとライブラリの2つの方法で使えます。
+
+壱百満天原サロメお嬢様風の口調変換の例を以下に示します。
+
+[options="header"]
+|=================
+| 変換前 | 変換後
+| 〇〇をプレイする | 〇〇をプレイいたしますわ
+| ビデオテープはどこで使うんですか | おビデオテープはどちらで使うんですの
+| 汚いです！ | きったねぇですわ～～！！！
+| わたしも使ってました| わたくしも使っておりましたわ
+|=================
+
+文の区切れ目や、文の変換結果の終端で「わ！」あるいは「わ？」で終わる場合は、
+ランダムで「～」と「！」または「？」を追加します。
+「～」「！」「？」の数は0～3個のいずれかになります。
+
+[options="header"]
+|=================
+| 変換前 | 変換後
+| ハーブです！| おハーブですわ～～！！！
+| ハーブです？| おハーブですわ～～？？？
+|=================
+
+変換では、単語の品詞や読み、特定の単語の前後にある単語、
+特定の単語の連続などの変換ルールを順番に評価して変換しています。
+
+文章に対して形態素解析を行っており、
+形態素解析ライブラリの https://github.com/ikawaha/kagome[kagome] を使用しています。
+
+== 壱百満天原サロメお嬢様について
+
+本当のお嬢様に憧れる一般女性です。
+麗しいお姿と独特な言葉選びと高貴なお声
+// とたまに汚い言葉と庶民身あふれる発言とガバプレイ
+が魅力的な圧倒的お嬢様です。
+
+毎回約1時間前後の枠で配信するスタイルなので、翌日が仕事の人にも視聴しやすいです。
+また、配信冒頭に前回のあらすじを話してくださるため、
+途中から配信を見始めた方も内容についていけるように配慮してくださっています。
+
+サロメイトにも、そうでない方にも等しく配慮をしてくださる高貴なお嬢様であるため
+ぜひ、まだ配信を見たことの無い方も配信を視聴してみてください。
+
+詳細は以下リンクをご参照ください。
+
+* https://www.nijisanji.jp/members/salome-hyakumantenbara[壱百満天原サロメ - にじさんじ公式サイト]
+* https://twitter.com/1000000lome[壱百満天原サロメ - Twitter]
+* https://www.youtube.com/channel/UCgIfLpQvelloDi8I0Ycbwpg[壱百満天原サロメ / Hyakumantenbara Salome - Youtube]
+
+== 使い方
+
+=== Web
+
+Web版提供してます。特にツールのインストールは不要です。
+
+* https://ojosama.herokuapp.com
+
+Web版のソースコードは以下です。
+
+* https://github.com/jiro4989/ojosama-web
+
+=== コマンド
+
+ワンライナーでテキストを変換する場合は、以下のように実行します。
+
+[source,bash]
+----
+$ ojosama -t ハーブがありました！
+おハーブがありましたわ～！！
+
+# 標準入力
+$ echo ハーブがありました！ | ojosama
+おハーブがありましたわ～！！
+----
+
+テキストファイルをまるごと変換する場合は、以下のように実行します。
+
+[source,bash]
+----
+$ ojosama README.adoc
+----
+
+ファイルの文字コードを指定する場合は `-charcode` オプションを指定します。
+現状 `sjis` と `utf8` のみサポートしています。（デフォルトでは `utf8`）
+
+[source,bash]
+----
+$ ojosama -charcode sjis testdata/sample1_sjis.txt
+----
+
+=== ライブラリ
+
+Goのコードとして使う場合は以下のように使用します。
+
+[source,go]
+----
+package main
+
+import (
+  "fmt"
+
+  "github.com/jiro4989/ojosama"
+)
+
+func main() {
+  s := "ハーブがありました！"
+  text, err := ojosama.Convert(s, nil)
+  if err != nil {
+    panic(err)
+  }
+  fmt.Println(text)
+}
+----
+
+== インストール
+
+https://github.com/jiro4989/ojosama/releases[Releases]から実行可能ファイルをダウンロードしてください。
+
+あるいは以下のコマンドでインストールしてください。
+
+[source,bash]
+----
+$ go install github.com/jiro4989/ojosama/cmd/ojosama@latest
+----
+
+== 注意事項
+
+=== 変換結果について
+
+まだまだ実装途中なので、怪しい変換をする場合があります。
+
+必ずしも、自分のイメージしているお嬢様の口調になっているとは限らないことをご了承ください。
+
+=== プログラムの使用について
+
+壱百満天原サロメお嬢様、及びその所属の にじさんじ や、
+その関係者、ファンコミュニティの方の迷惑にならないように使ってください。
+
+本プログラムは、にじさんじ所属の壱百満天原サロメお嬢様のキャラクターを題材にした二次創作の一つです。
+故に、本プログラムは以下二次創作ガイドラインに従います。
+
+* https://event.nijisanji.app/guidelines/[ANYCOLOR二次創作ガイドライン]
+
+本プログラムを使う場合も上記ガイドラインを守ってお使いください。
+
+== 既知のバグ
+
+変換済みの文を更に変換すると変になります。
+
+[source,bash]
+----
+$ ojosama -t お願いします | ojosama
+お願いいたしますわですわ
+----
+
+== 派生プロジェクト
+
+派生したプロジェクトのリンクです。多謝。
+
+[options="header"]
+|=================
+| 説明 | 言語 | リポジトリURL
+| スラッシュコマンドでお嬢様に変換できるDiscordBot | Go | https://github.com/wgdp/ojosama-discord-bot
+| Gitのコミットメッセージをお嬢様にするCLI | Rust | https://github.com/Sigumaa/ojosama-commit
+| 任意のテキストや、開いてるバッファ上のテキストをお嬢様にするVimプラグイン | Vim Script | https://github.com/heavenshell/vim-ojosama
+| スラッシュコマンドでお嬢様に変換できるSlack App | Go | https://github.com/yoskeoka/ojosama-slack-app
+|=================
+
+== 開発者向け
+
+=== 開発環境
+
+* Go 1.18.2
+* Ubuntu 22.04 on Docker
+* make (なくてもいい)
+
+=== ビルド
+
+以下のコマンドでビルドします。
+実行すると内部で単体テストも実施されるので、とりあえずこれがパスすればOK。
+
+[source,bash]
+----
+$ make
+$ ls -lah ./bin/ojosama
+----
+
+=== リリース
+
+git tag打ったらCIが走って自動でリリースする。
+
+=== 絵文字プレフィックス
+
+コミットメッセージにはなるべく絵文字プレフィックスを付けるようにします。
+ただし忘れてもOKです。
+使う絵文字は大体以下。
+
+[options="header"]
+|=================
+| 絵文字 | GitHub上のマーク | 使うタイミング
+| :sparkles: | `:sparkles:` | 新機能、変換ルールの追加
+| :bug: | `:bug:` | バグ修正
+| :100: | `:100:` | リファクタリング
+| :green_heart: | `:green_heart:` | テスト、CI系
+| :memo: | `:memo:` | ドキュメント系
+|=================
