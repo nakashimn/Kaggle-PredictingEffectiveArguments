@@ -16,6 +16,10 @@ class TextCleaner:
     def clean(self, data, col):
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
+        # Replace unicode
+        data[col] = data[col].str.replace("\n", " ", regex=True)
+        data[col] = data[col].str.replace("\t", " ", regex=True)
+        data[col] = data[col].str.replace("\xa0", " ", regex=True)
         # Replace
         data[col] = data[col].str.replace(r"what's", "what is ", regex=True)
         data[col] = data[col].str.replace(r"\'ve", " have ", regex=True)
@@ -49,6 +53,7 @@ class TextCleaner:
         data[col] = data[col].str.replace(r'[ ]{2,}',' ', regex=True).str.strip()
         data[col] = data[col].str.replace(r' +', ' ', regex=True)
         # data[col] = data[col].apply(lambda x: ' '.join([word for word in x.split() if word not in (self.stop)]))
+        data[col] = data[col].str.strip()
         return data
 
 class DataPreprocessor:
