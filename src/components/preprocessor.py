@@ -1,8 +1,20 @@
 import os
+import codecs
 import pandas as pd
 import nltk
 from nltk.corpus import stopwords
+from text_unidecode import unidecode
 import traceback
+
+
+def replace_encoding_with_utf8(error: UnicodeError):
+    return error.object[error.start : error.end].encode("utf-8"), error.end
+
+def replace_decoding_with_cp1252(error: UnicodeError):
+    return error.object[error.start : error.end].decode("cp1252"), error.end
+
+codecs.register_error("replace_encoding_with_utf8", replace_encoding_with_utf8)
+codecs.register_error("replace_decoding_with_cp1252", replace_decoding_with_cp1252)
 
 class TextCleaner:
     def __init__(self):
@@ -13,7 +25,19 @@ class TextCleaner:
     def lemmatize_text(self, text):
         return [self.lemmatizer.lemmatize(w) for w in text]
 
+    def resolve_encodings_and_normalize(self, text: str) -> str:
+        text = (
+            text.encode("raw_unicode_escape")
+            .decode("utf-8", errors="replace_decoding_with_cp1252")
+            .encode("cp1252", errors="replace_encoding_with_utf8")
+            .decode("utf-8", errors="replace_decoding_with_cp1252")
+        )
+        text = unidecode(text)
+        return text
+
     def clean(self, data, col):
+        # Resolve encode
+        data[col] = data[col].apply(self.resolve_encodings_and_normalize)
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
         # Replace unicode
