@@ -17,21 +17,21 @@ config = {
         "Position",
         "Rebuttal"
     ],
-    "experiment_name": "fp-distilbert-v0",
+    "experiment_name": "fp-electra-base-v0",
     "path": {
         "traindata": "/kaggle/input/feedback-prize-effectiveness/train.csv",
         "trainessay": "/kaggle/input/feedback-prize-effectiveness/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
-        "model_dir": "/kaggle/input/fp-distilbert-v0/"
+        "model_dir": "/kaggle/input/fp-electra-base-v0/"
     },
     "modelname": "best_loss",
     "pred_ensemble": True,
     "train_with_alldata": False
 }
 config["model"] = {
-    "base_model_name": "/kaggle/input/distilbertbaseuncased",
+    "base_model_name": "/kaggle/input/electrabase",
     "dim_feature": 768,
     "num_class": 3,
     "dropout_rate": 0.5,
@@ -87,7 +87,7 @@ config["kfold"] = {
     }
 }
 config["datamodule"] = {
-    "dataset":{
+    "dataset": {
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
         "label": config["label"],
