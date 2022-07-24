@@ -9,7 +9,7 @@ from transformers import AutoTokenizer
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 from config.distilbert import config
 from components.preprocessor import TextCleaner, DataPreprocessor
-from components.datamodule import FpDataset, FpDatasetTokenized
+from components.datamodule import FpDataset
 
 def fix_seed(seed):
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -27,8 +27,3 @@ df_train = data_preprocessor.train_dataset()
 fix_seed(config["random_seed"])
 dataset = FpDataset(df_train, config["datamodule"]["dataset"], AutoTokenizer)
 batch = dataset.__getitem__(0)
-
-# FpDataSetTokenized
-fix_seed(config["random_seed"])
-dataset_tokenized = FpDatasetTokenized(df_train, config["datamodule"]["dataset"], AutoTokenizer)
-batch_ = dataset_tokenized.__getitem__(0)
