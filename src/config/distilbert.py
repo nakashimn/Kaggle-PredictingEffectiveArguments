@@ -19,8 +19,8 @@ config = {
     ],
     "experiment_name": "fp-distilbert-v0",
     "path": {
-        "traindata": "/kaggle/input/feedback-prize-effectiveness/train.csv",
-        "trainessay": "/kaggle/input/feedback-prize-effectiveness/train/",
+        "traindata": "/workspace/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train_balanced.csv",
+        "trainessay": "/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",

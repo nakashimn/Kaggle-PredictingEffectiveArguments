@@ -1,5 +1,5 @@
 config = {
-    "n_splits": 3,
+    "n_splits": 7,
     "random_seed": 57,
     "label": "discourse_effectiveness",
     "group": "essay_id",
@@ -19,8 +19,8 @@ config = {
     ],
     "experiment_name": "fp-deberta-v3-base-v0",
     "path": {
-        "traindata": "/kaggle/input/feedback-prize-effectiveness/train.csv",
-        "trainessay": "/kaggle/input/feedback-prize-effectiveness/train/",
+        "traindata": "/workspace/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train_org_with_backtrans_jp.csv",
+        "trainessay": "/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
@@ -57,7 +57,7 @@ config["model"] = {
     }
 }
 config["earlystopping"] = {
-    "patience": 3
+    "patience": 1
 }
 config["checkpoint"] = {
     "dirpath": config["path"]["temporal_dir"],
