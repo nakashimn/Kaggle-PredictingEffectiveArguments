@@ -2,7 +2,7 @@ import os
 import codecs
 import pandas as pd
 import nltk
-from nltk.corpus import stopwords
+# from nltk.corpus import stopwords
 from text_unidecode import unidecode
 import traceback
 
@@ -18,12 +18,13 @@ codecs.register_error("replace_decoding_with_cp1252", replace_decoding_with_cp12
 
 class TextCleaner:
     def __init__(self):
-        nltk.download('stopwords')
-        self.stop = stopwords.words('english')
-        self.lemmatizer = nltk.stem.WordNetLemmatizer()
+        # nltk.download('stopwords')
+        # self.stop = stopwords.words('english')
+        # self.lemmatizer = nltk.stem.WordNetLemmatizer()
+        pass
 
-    def lemmatize_text(self, text):
-        return [self.lemmatizer.lemmatize(w) for w in text]
+    # def lemmatize_text(self, text):
+    #     return [self.lemmatizer.lemmatize(w) for w in text]
 
     def resolve_encodings_and_normalize(self, text: str) -> str:
         text = (
@@ -41,8 +42,8 @@ class TextCleaner:
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
         # Replace unicode
-        data[col] = data[col].str.replace("\n", " ", regex=True)
-        data[col] = data[col].str.replace("\t", " ", regex=True)
+        data[col] = data[col].str.replace(r"\n+", "\n", regex=True)
+        data[col] = data[col].str.replace(r"\t+", " ", regex=True)
         data[col] = data[col].str.replace("\xa0", " ", regex=True)
         # Replace
         data[col] = data[col].str.replace(r"what's", "what is ", regex=True)
@@ -56,10 +57,10 @@ class TextCleaner:
         data[col] = data[col].str.replace(r"\'scuse", " excuse ", regex=True)
         data[col] = data[col].str.replace(r"\'s", " ", regex=True)
         # Remove
-        data[col] = data[col].str.replace(r'\s', ' ', regex=True)
-        data[col] = data[col].str.replace('.', ' ', regex=True)
-        data[col] = data[col].str.replace(',', ' ', regex=True)
-        data[col] = data[col].str.replace('\"', ' ', regex=True)
+        # data[col] = data[col].str.replace(r'\s', ' ', regex=True)
+        # data[col] = data[col].str.replace('.', ' ', regex=True)
+        # data[col] = data[col].str.replace(',', ' ', regex=True)
+        # data[col] = data[col].str.replace('\"', ' ', regex=True)
         data[col] = data[col].str.replace('(', ' ', regex=True)
         data[col] = data[col].str.replace(')', ' ', regex=True)
         data[col] = data[col].str.replace(':', ' ', regex=True)
