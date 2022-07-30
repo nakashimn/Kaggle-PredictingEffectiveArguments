@@ -6,7 +6,7 @@ tmp
 
 data/*
 kaggle/input/*
-log/mlruns/*
+log/*
 src/log/*
 
 lightning_logs
