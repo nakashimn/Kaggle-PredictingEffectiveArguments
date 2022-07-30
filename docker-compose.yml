@@ -16,12 +16,12 @@ services:
       - ./kaggle:/kaggle:cached
       - ${DATASTORAGE_PATH}:/data_storage:cached
       - ${MLFLOW_STORAGE_PATH}:/content/drive/MyDrive/Colab Notebooks/mlruns
-      - ${MLFLOW_STORAGE_PATH}:/workspace/log/mlruns:ro
+      - ${MLFLOW_STORAGE_PATH}:/workspace/log/google_drive/mlruns
     environment:
       TZ: Asia/Tokyo
       KAGGLE_USERNAME: ${KAGGLE_USERNAME}
       KAGGLE_KEY: ${KAGGLE_KEY}
-      MLFLOW_TRACKING_URI: /content/drive/MyDrive/Colab Notebooks/mlruns
+      MLFLOW_TRACKING_URI: /workspace/log/local/mlruns
       DISPLAY: host.docker.internal:0.0
       PULSE_SERVER: tcp:host.docker.internal
     tty: true
