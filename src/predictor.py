@@ -131,10 +131,11 @@ if __name__=="__main__":
         None
     )
     predictor.run()
+    preds_binary = np.identity(config["model"]["num_class"])[np.argmax(predictor.probs, axis=1)]
 
     # output
     submission = pd.concat([
         df_test["discourse_id"],
-        pd.DataFrame(predictor.probs, columns=config["labels"])
+        pd.DataFrame(preds_binary, columns=config["labels"])
     ], axis=1)
     submission.to_csv("submission.csv", index=None)
