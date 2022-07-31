@@ -42,7 +42,7 @@ class TextCleaner:
         # Replace Upper to Lower
         data[col] = data[col].str.lower()
         # Replace unicode
-        data[col] = data[col].str.replace(r"\n+", "\n", regex=True)
+        data[col] = data[col].str.replace(r"\n{3,}", "\n\n", regex=True)
         data[col] = data[col].str.replace(r"\t+", " ", regex=True)
         data[col] = data[col].str.replace("\xa0", " ", regex=True)
         # Replace
