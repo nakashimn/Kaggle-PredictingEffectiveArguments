@@ -43,7 +43,7 @@ def write_text(filepath, text):
         f.write(text)
 
 def clean_text(text: str):
-    text = re.sub("\n+", "\n", text)
+    text = re.sub("\n{3,}", "\n\n", text)
     text = re.sub("\t+", " ", text)
     text = text.replace("\xa0", " ")
     text = text.strip()
@@ -190,7 +190,7 @@ def backtrans_essay(
         filepath_backtrans = str(pathlib.Path(dirpath_backtrans) / f"{file_id}_0.txt")
         filepath_trans_jp = str(pathlib.Path(dirpath_trans_jp) / f"{file_id}_jp.txt")
 
-        if os.path.exists(filepath_backtrans):
+        if os.path.exists(filepath_trans_jp):
             continue
 
         text_org = read_text(filepath_txt)
@@ -240,7 +240,7 @@ def backtrans_long_essay(
         filepath_backtrans = str(pathlib.Path(dirpath_backtrans) / f"{file_id}_0.txt")
         filepath_trans_jp = str(pathlib.Path(dirpath_trans_jp) / f"{file_id}_jp.txt")
 
-        if os.path.exists(filepath_backtrans):
+        if os.path.exists(filepath_trans_jp):
             continue
 
         text_org = read_text(filepath_txt)
