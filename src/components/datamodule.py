@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
@@ -112,3 +113,71 @@ class FpDataModule(LightningDataModule):
             self.transforms["pred"]
         )
         return DataLoader(dataset, **self.config["pred_loader"])
+
+class FpDatasetPseudo(FpDataset):
+    def __init__(self, df, config, Tokenizer, transform=None):
+        self.config = config
+        self.val = self.read_values(df)
+        self.labels = None
+        self.pseudos = None
+        if self.config["label"] in df.keys():
+            self.labels = self.read_labels(df)
+            self.pseudos = df["pseudo"].values
+        self.tokenizer = Tokenizer.from_pretrained(
+            self.config["base_model_name"],
+            use_fast=self.config["use_fast_tokenizer"]
+        )
+        self.transform = transform
+
+    def __getitem__(self, idx):
+        ids, masks = self.tokenize(self.val[idx])
+        if self.transform is not None:
+            ids = self.transform(ids)
+        if self.labels is not None:
+            labels = self.labels[idx]
+            pseudos = self.pseudos[idx]
+            return ids, masks, labels, pseudos
+        return ids, masks
+
+class FpDataModulePseudo(FpDataModule):
+    def __init__(
+        self,
+        df_train,
+        df_val,
+        df_pred,
+        Dataset,
+        Tokenizer,
+        config,
+        transforms
+    ):
+        super().__init__(
+            df_train,
+            df_val,
+            df_pred,
+            Dataset,
+            Tokenizer,
+            config,
+            transforms
+        )
+        # const
+        self.df_train_org = df_train.copy()
+
+        # variables
+        self.df_train = df_train        # updated with pseudo labeled data
+
+    def update_train_dataloader(self, pseudo_label_probs):
+        idx_conf_pseudo_labels, conf_pseudo_labels = \
+            self.pickup_confidential_pseudo_labels(pseudo_label_probs)
+        df_pseudo_train = self.df_pred.loc[idx_conf_pseudo_labels].reset_index(drop=True)
+        df_pseudo_train[self.config["dataset"]["label"]] = \
+            [self.config["dataset"]["labels"][i] for i in conf_pseudo_labels]
+        self.df_train = pd.concat([self.df_train_org, df_pseudo_train]).reset_index(drop=True)
+        confidential_pseudo_rate = np.sum(idx_conf_pseudo_labels)/len(pseudo_label_probs)
+        return confidential_pseudo_rate
+
+    def pickup_confidential_pseudo_labels(self, pseudo_label_probs):
+        idx_confidential_pseudo_labels = (
+            np.max(pseudo_label_probs, axis=1)>=self.config["pseudo_confidential_threshold"]
+        )
+        confidential_pseudo_labels = np.argmax(pseudo_label_probs, axis=1)[idx_confidential_pseudo_labels]
+        return idx_confidential_pseudo_labels, confidential_pseudo_labels
