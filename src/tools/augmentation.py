@@ -46,10 +46,16 @@ def clean_text(text: str):
     text = re.sub("\n{3,}", "\n\n", text)
     text = re.sub("\t+", " ", text)
     text = text.replace("\xa0", " ")
+    text = re.sub(" +", " ", text)
     text = text.strip()
     return text
 
-def split_text_to_sentences(text, delimiter=". "):
+def adhoc_clean_text_jp(text_jp: str):
+    # drop English only sentence from japanese text.
+    text_jp = re.sub("。[a-z]*。", "。", text_jp)
+    return text_jp
+
+def split_text_to_sentences(text, delimiter="."):
     sentences = text.split(delimiter)
     sentences = [sentence + delimiter for sentence in sentences[:-1]] + [sentences[-1]]
     return sentences
@@ -71,9 +77,10 @@ def backtrans_discourse_text(
     # prepare
     translator = Translator(raise_exception=True)
     ## Ineffective -> Effective -> Adequate の順
-    indices_trans = df_train.sort_values(
-        "discourse_effectiveness", ascending=False
-    ).index
+    # indices_trans = df_train.sort_values(
+    #     "discourse_effectiveness", ascending=False
+    # ).index
+    indices_trans = df_train.index
 
     # translate
     ## googletransの制限に途中で引っかかる可能性あり
@@ -92,15 +99,16 @@ def backtrans_discourse_text(
                     src="en"
                 )
                 time.sleep(wait_sec)
+                text_jp = adhoc_clean_text_jp(translated.text)
                 back_translated = translator.translate(
-                    translated.text,
+                    text_jp,
                     dest="en",
                     src=intermediate_language
                 )
                 time.sleep(wait_sec)
 
                 df_train_backtrans.loc[idx, header_text] = back_translated.text
-                df_train_trans_jp.loc[idx, header_text] = translated.text
+                df_train_trans_jp.loc[idx, header_text] = text_jp
 
             ## 文字列にNoneが含まれてしまう場合のみスキップして対処
             except TypeError:
@@ -128,9 +136,10 @@ def backtrans_discourse_text_ojosama(
     # prepare
     translator = Translator(raise_exception=True)
     ## Ineffective -> Effective -> Adequate の順
-    indices_trans = df_trans_jp.sort_values(
-        "discourse_effectiveness", ascending=False
-    ).index
+    # indices_trans = df_trans_jp.sort_values(
+    #     "discourse_effectiveness", ascending=False
+    # ).index
+    indices_trans = df_trans_jp.index
 
     # translate
     ## googletransの制限に途中で引っかかる可能性あり
@@ -141,6 +150,7 @@ def backtrans_discourse_text_ojosama(
                 continue
             text_jp = df_trans_jp.loc[idx, header_text]
             text_jp = clean_text(text_jp)
+            text_jp = adhoc_clean_text_jp(text_jp)
             try:
                 proc = subprocess.run(
                     [filepath_ojosama_translator, "-t", text_jp],
@@ -281,6 +291,7 @@ def backtrans_long_essay(
         ## 文字列にNoneが含まれてしまう場合のみスキップして対処
         except TypeError:
             print(traceback.format_exc())
+            print(sentences)
 
 
 def trans_jp_to_ojosama(
@@ -397,15 +408,15 @@ if __name__=="__main__":
     intermediate_language = "ja"
 
     # path
-    filepath_csv = "/kaggle/input/feedback-prize-effectiveness/train.csv"
-    filepath_backtrans_jp = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_backtrans_jp.csv"
-    filepath_trans_jp = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_jp.csv"
-    filepath_backtrans_ojosama = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_backtrans_ojosama.csv"
-    filepath_trans_ojosama = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_ojosama.csv"
-    dirpath_train = "/kaggle/input/feedback-prize-effectiveness/train/"
-    dirpath_backtrans = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train/"
-    dirpath_trans_jp = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_jp/"
-    dirpath_trans_ojosama = "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_ojosama/"
+    filepath_csv = "/kaggle/input/feedback-prize-2021-unduplicated/train.csv"
+    filepath_backtrans_jp = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_backtrans_jp.csv"
+    filepath_trans_jp = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_jp.csv"
+    filepath_backtrans_ojosama = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_backtrans_ojosama.csv"
+    filepath_trans_ojosama = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_ojosama.csv"
+    dirpath_train = "/kaggle/input/feedback-prize-2021-unduplicated/train/"
+    dirpath_backtrans = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train/"
+    dirpath_trans_jp = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_jp/"
+    dirpath_trans_ojosama = "/kaggle/input/back-translated-feedback-prize-2021-unduplicated/train_ojosama/"
     filepath_ojosama_translator = "/workspace/tools/ojosama"
 
     # back translate discourse_text
@@ -428,37 +439,37 @@ if __name__=="__main__":
         wait_sec
     )
 
-    # back translate essay
-    print("--- backtrans essay / en -> jp -> en ---")
-    backtrans_essay(
-        dirpath_train,
-        dirpath_backtrans,
-        dirpath_trans_jp,
-        wait_sec,
-        intermediate_language
-    )
+    # # back translate essay
+    # print("--- backtrans essay / en -> jp -> en ---")
+    # backtrans_essay(
+    #     dirpath_train,
+    #     dirpath_backtrans,
+    #     dirpath_trans_jp,
+    #     wait_sec,
+    #     intermediate_language
+    # )
 
-    backtrans_long_essay(
-        dirpath_train,
-        dirpath_backtrans,
-        dirpath_trans_jp,
-        wait_sec,
-        intermediate_language
-    )
+    # backtrans_long_essay(
+    #     dirpath_train,
+    #     dirpath_backtrans,
+    #     dirpath_trans_jp,
+    #     wait_sec,
+    #     intermediate_language
+    # )
 
-    print("--- backtrans essay / jp -> ojosama -> en ---")
-    trans_jp_to_ojosama(
-        dirpath_trans_jp,
-        dirpath_backtrans,
-        dirpath_trans_ojosama,
-        filepath_ojosama_translator,
-        wait_sec
-    )
+    # print("--- backtrans essay / jp -> ojosama -> en ---")
+    # trans_jp_to_ojosama(
+    #     dirpath_trans_jp,
+    #     dirpath_backtrans,
+    #     dirpath_trans_ojosama,
+    #     filepath_ojosama_translator,
+    #     wait_sec
+    # )
 
-    trans_long_jp_to_ojosama(
-        dirpath_trans_jp,
-        dirpath_backtrans,
-        dirpath_trans_ojosama,
-        filepath_ojosama_translator,
-        wait_sec
-    )
+    # trans_long_jp_to_ojosama(
+    #     dirpath_trans_jp,
+    #     dirpath_backtrans,
+    #     dirpath_trans_ojosama,
+    #     filepath_ojosama_translator,
+    #     wait_sec
+    # )
