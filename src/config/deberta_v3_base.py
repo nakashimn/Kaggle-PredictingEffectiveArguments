@@ -1,8 +1,8 @@
 config = {
-    "n_splits": 7,
+    "n_splits": 5,
     "random_seed": 57,
     "label": "discourse_effectiveness",
-    "group": "essay_id",
+    "group": "essay_group",
     "labels": [
         "Ineffective",
         "Adequate",
@@ -19,8 +19,8 @@ config = {
     ],
     "experiment_name": "fp-deberta-v3-base-v0",
     "path": {
-        "traindata": "/workspace/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train_org_with_backtrans_jp.csv",
-        "trainessay": "/kaggle/input/back-translated-feedback-prize-effectiveness-v3/train/",
+        "traindata": "/workspace/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_org_and_backtrans_jp_ojosama.csv",
+        "trainessay": "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
@@ -97,21 +97,21 @@ config["datamodule"] = {
         "discourse_type": {tp : i for i, tp in enumerate(config["types"])}
     },
     "train_loader": {
-        "batch_size": 8,
+        "batch_size": 12,
         "shuffle": True,
         "num_workers": 16,
         "pin_memory": True,
         "drop_last": True,
     },
     "val_loader": {
-        "batch_size": 8,
+        "batch_size": 12,
         "shuffle": False,
         "num_workers": 16,
         "pin_memory": True,
         "drop_last": False
     },
     "pred_loader": {
-        "batch_size": 8,
+        "batch_size": 12,
         "shuffle": False,
         "num_workers": 16,
         "pin_memory": False,

@@ -1,5 +1,7 @@
 config = {
-    "n_splits": 3,
+    "n_splits": 2,
+    "pseudo": True,
+    "pseudo_confidential_threshold": 0.9,
     "random_seed": 57,
     "label": "discourse_effectiveness",
     "group": "essay_group",
@@ -17,14 +19,14 @@ config = {
         "Position",
         "Rebuttal"
     ],
-    "experiment_name": "fp-distilbert-v0",
+    "experiment_name": "fp-distilbert-v0-pseudo-debug",
     "path": {
-        "traindata": "/workspace/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train_org_and_backtrans_jp.csv",
-        "trainessay": "/kaggle/input/back-translated-feedback-prize-effectiveness-v4/train/",
+    "traindata": "/kaggle/input/debug-psuedo/train_and_pseudo.csv",
+        "trainessay": "/kaggle/input/debug-psuedo/train/",
         "testdata": "/kaggle/input/feedback-prize-effectiveness/test.csv",
         "testessay": "/kaggle/input/feedback-prize-effectiveness/test/",
         "temporal_dir": "../tmp/artifacts/",
-        "model_dir": "/kaggle/input/fp-distilbert-v0/"
+        "model_dir": "/kaggle/input/fp-distilbert-v0-pseudo-debug/"
     },
     "modelname": "best_loss",
     "pred_ensemble": True,
@@ -37,9 +39,12 @@ config["model"] = {
     "dropout_rate": 0.5,
     "freeze_base_model": False,
     "loss": {
-        "name": "nn.CrossEntropyLoss",
+        "name": "PseudoLoss",
         "params": {
-            "weight": None
+            "LossFunction": "nn.CrossEntropyLoss",
+            "alpha": 3,
+            "epoch_th_lower": 1,
+            "epoch_th_upper": 10
         }
     },
     "optimizer":{
@@ -57,20 +62,23 @@ config["model"] = {
     }
 }
 config["earlystopping"] = {
-    "patience": 1
+    "monitor": "pseudo_labeled_ratio",
+    "mode": "max",
+    "patience": 1,
+    "stopping_threshold": 0.9
 }
 config["checkpoint"] = {
     "dirpath": config["path"]["temporal_dir"],
-    "monitor": "val_loss",
+    "monitor": "pseudo_labeled_ratio",
     "save_top_k": 1,
-    "mode": "min",
+    "mode": "max",
     "save_last": False,
     "save_weights_only": False
 }
 config["trainer"] = {
     "accelerator": "gpu",
     "devices": 1,
-    "max_epochs": 100,
+    "max_epochs": 2,
     "accumulate_grad_batches": 1,
     "fast_dev_run": False,
     "deterministic": True,
@@ -91,6 +99,7 @@ config["datamodule"] = {
         "base_model_name": config["model"]["base_model_name"],
         "num_class": config["model"]["num_class"],
         "label": config["label"],
+        "labels": config["labels"],
         "use_fast_tokenizer": True,
         "max_length": 512,
         "discourse_effectiveness": {l : i for i, l in enumerate(config["labels"])},
@@ -116,7 +125,8 @@ config["datamodule"] = {
         "num_workers": 16,
         "pin_memory": False,
         "drop_last": False
-    }
+    },
+    "pseudo_confidential_threshold": config["pseudo_confidential_threshold"]
 }
 config["Metrics"] = {
     "label": config["labels"]
